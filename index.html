@@ -131,7 +131,6 @@
     </div>
   </div>
 
-
   <script>
     // 'const'를 'let'으로 변경하여 값 수정이 가능하도록 함
     let SALE_RATE = 0.3;
@@ -235,7 +234,6 @@
       calculateAll();
     };
 
-    // 설정 값과 input ID, 변환 함수를 매핑
     const settingsMap = {
       'settingSaleRate':   { setter: value => SALE_RATE = value / 100,  getter: () => SALE_RATE * 100 },
       'settingVatRate':    { setter: value => VAT_RATE = value / 100,   getter: () => VAT_RATE * 100 },
@@ -247,14 +245,12 @@
       'settingCreamFee2':  { setter: value => CREAM_FEE2 = value / 100, getter: () => CREAM_FEE2 * 100 },
     };
 
-    // 설정 패널의 input들을 초기화하는 함수
     const initializeSettings = () => {
       Object.keys(settingsMap).forEach(id => {
         el(id).value = settingsMap[id].getter();
       });
     };
 
-    // 설정 보기/숨기기 버튼 이벤트 리스너
     el('toggleSettings').addEventListener('click', () => {
       const panel = el('settingsPanel');
       const button = el('toggleSettings');
@@ -262,23 +258,35 @@
       button.textContent = panel.classList.contains('open') ? '설정 닫기' : '설정 보기';
     });
 
-    // 메인 입력창 이벤트 리스너
     document.querySelectorAll(".input-box").forEach(input => {
       input.addEventListener("input", calculateAll);
     });
 
-    // 설정 입력창 이벤트 리스너
     Object.keys(settingsMap).forEach(id => {
       el(id).addEventListener('input', e => {
         const value = parseFloat(e.target.value) || 0;
-        settingsMap[id].setter(value); // 맵을 이용해 변수 업데이트
-        calculateAll(); // 값 변경 시 전체 재계산
+        settingsMap[id].setter(value);
+        calculateAll();
       });
     });
 
-    // 페이지 로딩 시 실행
     initializeSettings();
     calculateAll();
   </script>
+
+  <!-- ▼▼▼▼▼ 제작자 정보 (Footer) ▼▼▼▼▼ -->
+  <footer class="mt-12 text-center">
+    <hr class="mb-6 border-t border-gray-300">
+    <div class="text-sm text-gray-500 space-y-1">
+      <p>
+        Crafted by <strong class="font-semibold text-gray-600">nh</strong> in collaboration with AI Partners:
+      </p>
+      <p>
+        ChatGPT, Grok & Google AI Studio
+      </p>
+    </div>
+  </footer>
+  <!-- ▲▲▲▲▲ 여기까지 ▲▲▲▲▲ -->
+
 </body>
 </html>
