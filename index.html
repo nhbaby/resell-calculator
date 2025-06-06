@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>리셀 계산기</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
+    input:read-only {
+      background-color: #f0f0f0;
+    }
+    /* 설정 패널 애니메이션 및 스타일 */
+    #settingsPanel {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out;
+    }
+    #settingsPanel.open {
+      max-height: 1000px; /* 패널이 펼쳐졌을 때의 충분한 높이 */
+      opacity: 1;
+    }
+    .setting-input {
+      @apply w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 p-6 max-w-md mx-auto font-sans">
+  <h1 class="text-3xl font-extrabold text-center mb-8 text-indigo-700 drop-shadow-md">리셀 계산기</h1>
+
+  <button 
+    onclick="resetInputs()" 
+    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-md shadow-md mb-8 transition-colors duration-300"
+  >
+    초기화
+  </button>
+
+  <form id="resellForm" class="space-y-6">
+    <div>
+      <label for="purchasePrice" class="block mb-1 font-medium text-gray-700">구입가</label>
+      <input type="number" id="purchasePrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 100000" inputmode="numeric" />
+    </div>
+    <div>
+      <label for="poisonSellPrice" class="block mb-1 font-medium text-gray-700">포이즌 판매가</label>
+      <input type="number" id="poisonSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 150000" inputmode="numeric" />
+    </div>
+    <div>
+      <label for="stockxSellPrice" class="block mb-1 font-medium text-gray-700">스탁엑스 판매가</label>
+      <input type="number" id="stockxSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 155000" inputmode="numeric" />
+    </div>
+    <div>
+      <label for="creamSellPrice" class="block mb-1 font-medium text-gray-700">크림 판매가</label>
+      <input type="number" id="creamSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 148000" inputmode="numeric" />
+    </div>
+
+    <section class="bg-white rounded-lg shadow-md p-5 space-y-3 border border-indigo-100">
+      <p class="text-lg font-semibold text-indigo-600">구입 정보</p>
+      <hr class="border-indigo-200" />
+      <p class="text-gray-700">실구입가: <span id="realPurchase" class="font-medium text-gray-900">-</span></p>
+      <p class="text-gray-700">매입부가세: <span id="vat" class="font-medium text-gray-900">-</span></p>
+    </section>
+
+    <section class="bg-indigo-50 rounded-lg shadow-md p-5 space-y-3 border border-indigo-200">
+      <p class="text-lg font-semibold text-indigo-700">포이즌 계산</p>
+      <hr class="border-indigo-300" />
+      <p>최소입찰가1: <span id="poisonMinBid1" class="font-medium text-gray-900">-</span></p>
+      <p>마진1: <span id="poisonMargin1" class="font-medium text-gray-900">-</span> / 수익률: <span id="poisonMarginRate1" class="font-medium text-gray-900">-</span>%</p>
+      <p>최소입찰가2: <span id="poisonMinBid2" class="font-medium text-gray-900">-</span></p>
+      <p>마진2: <span id="poisonMargin2" class="font-medium text-gray-900">-</span> / 수익률: <span id="poisonMarginRate2" class="font-medium text-gray-900">-</span>%</p>
+    </section>
+
+    <section class="bg-white rounded-lg shadow-md p-5 space-y-3 border border-gray-300">
+      <p class="text-lg font-semibold text-indigo-700">스탁엑스 계산</p>
+      <hr class="border-gray-300" />
+      <p>수수료합계: <span id="stockxFees" class="font-medium text-gray-900">-</span></p>
+      <p>정산금액: <span id="stockxFinal" class="font-medium text-gray-900">-</span></p>
+      <p>마진1: <span id="stockxMargin1" class="font-medium text-gray-900">-</span> / 수익률: <span id="stockxMarginRate1" class="font-medium text-gray-900">-</span>%</p>
+      <p>마진2: <span id="stockxMargin2" class="font-medium text-gray-900">-</span> / 수익률: <span id="stockxMarginRate2" class="font-medium text-gray-900">-</span>%</p>
+    </section>
+
+    <section class="bg-indigo-50 rounded-lg shadow-md p-5 space-y-3 border border-indigo-200">
+      <p class="text-lg font-semibold text-indigo-700">크림 계산</p>
+      <hr class="border-indigo-300" />
+      <p>정산수수료: <span id="creamFee" class="font-medium text-gray-900">-</span></p>
+      <p>정산금액: <span id="creamFinal" class="font-medium text-gray-900">-</span></p>
+      <p>마진: <span id="creamMargin" class="font-medium text-gray-900">-</span> / 수익률: <span id="creamMarginRate" class="font-medium text-gray-900">-</span>%</p>
+    </section>
+  </form>
+
+  <hr class="my-8 border-t-2 border-gray-300 border-dashed" />
+
+  <button 
+    id="toggleSettings"
+    class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 rounded-md shadow-md mb-4 transition-colors duration-300"
+  >
+    설정 보기
+  </button>
+
+  <div id="settingsPanel" class="space-y-4">
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+      <label for="settingSaleRate" class="font-medium text-gray-700 justify-self-end">할인율 (%)</label>
+      <input type="number" id="settingSaleRate" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+      <label for="settingVatRate" class="font-medium text-gray-700 justify-self-end">부가세율 (%)</label>
+      <input type="number" id="settingVatRate" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+      <label for="settingPoizonFee" class="font-medium text-gray-700 justify-self-end">포이즌 수수료 (원)</label>
+      <input type="number" id="settingPoizonFee" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+        <label for="settingStockxFee1" class="font-medium text-gray-700 justify-self-end">스탁엑스 수수료1 (%)</label>
+        <input type="number" id="settingStockxFee1" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+        <label for="settingStockxFee2" class="font-medium text-gray-700 justify-self-end">스탁엑스 수수료2 (%)</label>
+        <input type="number" id="settingStockxFee2" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+        <label for="settingStockxFee3" class="font-medium text-gray-700 justify-self-end">스탁엑스 배송비 (원)</label>
+        <input type="number" id="settingStockxFee3" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+        <label for="settingCreamFee1" class="font-medium text-gray-700 justify-self-end">크림 수수료1 (원)</label>
+        <input type="number" id="settingCreamFee1" class="setting-input" />
+    </div>
+    <div class="grid grid-cols-2 gap-x-4 items-center">
+        <label for="settingCreamFee2" class="font-medium text-gray-700 justify-self-end">크림 수수료2 (%)</label>
+        <input type="number" id="settingCreamFee2" class="setting-input" />
+    </div>
+  </div>
+
+
+  <script>
+    // 'const'를 'let'으로 변경하여 값 수정이 가능하도록 함
+    let SALE_RATE = 0.3;
+    let VAT_RATE = 0.1;
+    let POIZON_FEE = 15000;
+
+    let STOCKX_FEE1 = 0.09;
+    let STOCKX_FEE2 = 0.03;
+    let STOCKX_FEE3 = 4000;
+
+    let CREAM_FEE1 = 5000;
+    let CREAM_FEE2 = 0.04;
+
+    const el = id => document.getElementById(id);
+
+    const getMarginRate = (margin, realPurchase) => {
+      if (realPurchase === 0) return "0";
+      return ((margin / realPurchase) * 100).toFixed(1);
+    };
+
+    const calculateShared = () => {
+      const purchase = parseFloat(el("purchasePrice").value) || 0;
+      const realPurchase = Math.round(purchase * (1 - SALE_RATE));
+      const vat = Math.round(realPurchase - (realPurchase / (1 + VAT_RATE)));
+
+      el("realPurchase").innerText = realPurchase.toLocaleString();
+      el("vat").innerText = vat.toLocaleString();
+
+      return { purchase, realPurchase, vat };
+    };
+
+    const calculatePoison = ({ realPurchase, vat }) => {
+      const poisonPrice = parseFloat(el("poisonSellPrice").value) || 0;
+      const poisonMinBid1 = realPurchase + POIZON_FEE;
+      const poisonMargin1 = poisonPrice - poisonMinBid1;
+      const poisonMinBid2 = poisonMinBid1 - vat;
+      const poisonMargin2 = poisonPrice - poisonMinBid2;
+
+      el("poisonMinBid1").innerText = poisonMinBid1.toLocaleString();
+      el("poisonMargin1").innerText = poisonMargin1.toLocaleString();
+      el("poisonMinBid2").innerText = poisonMinBid2.toLocaleString();
+      el("poisonMargin2").innerText = poisonMargin2.toLocaleString();
+
+      el("poisonMarginRate1").innerText = getMarginRate(poisonMargin1, realPurchase);
+      el("poisonMarginRate2").innerText = getMarginRate(poisonMargin2, realPurchase);
+    };
+
+    const calculateStockX = ({ realPurchase, vat }) => {
+      const stockxPrice = parseFloat(el("stockxSellPrice").value) || 0;
+      const stockxFeeTotal = Math.max(7500, Math.round(stockxPrice * STOCKX_FEE1)) + Math.round(stockxPrice * STOCKX_FEE2) + STOCKX_FEE3;
+      const stockxFinal = stockxPrice - stockxFeeTotal;
+      const stockxMargin1 = stockxFinal - realPurchase;
+      const stockxMargin2 = stockxMargin1 + vat;
+
+      el("stockxFees").innerText = stockxFeeTotal.toLocaleString();
+      el("stockxFinal").innerText = stockxFinal.toLocaleString();
+      el("stockxMargin1").innerText = stockxMargin1.toLocaleString();
+      el("stockxMargin2").innerText = stockxMargin2.toLocaleString();
+
+      el("stockxMarginRate1").innerText = getMarginRate(stockxMargin1, realPurchase);
+      el("stockxMarginRate2").innerText = getMarginRate(stockxMargin2, realPurchase);
+    };
+
+    const calculateCream = ({ vat, realPurchase }) => {
+      const creamPrice = parseFloat(el("creamSellPrice").value) || 0;
+      const creamFee = Math.round(((creamPrice * CREAM_FEE2) + CREAM_FEE1) * (1.1));
+      const creamFinal = creamPrice - creamFee;
+      const creamMargin = creamFinal - realPurchase;
+
+      el("creamFee").innerText = creamFee.toLocaleString();
+      el("creamFinal").innerText = creamFinal.toLocaleString();
+      el("creamMargin").innerText = creamMargin.toLocaleString();
+      el("creamMarginRate").innerText = getMarginRate(creamMargin, realPurchase);
+    };
+    
+    const updateMarginStyles = () => {
+      const marginIds = ["poisonMargin1", "poisonMargin2", "stockxMargin1", "stockxMargin2", "creamMargin"];
+      marginIds.forEach(id => {
+        const element = el(id);
+        const marginValue = parseInt(element.innerText.replace(/,/g, ''), 10);
+        element.classList.remove("text-red-600", "text-blue-600", "font-bold");
+        if (isNaN(marginValue)) return;
+        if (marginValue < 0) {
+          element.classList.add("text-red-600", "font-bold");
+        } else if (marginValue > 0) {
+          element.classList.add("text-blue-600", "font-bold");
+        }
+      });
+    };
+
+    const calculateAll = () => {
+      const shared = calculateShared();
+      calculatePoison(shared);
+      calculateStockX(shared);
+      calculateCream(shared);
+      updateMarginStyles();
+    };
+
+    const resetInputs = () => {
+      ["purchasePrice", "poisonSellPrice", "stockxSellPrice", "creamSellPrice"].forEach(id => el(id).value = "");
+      calculateAll();
+    };
+
+    // 설정 값과 input ID, 변환 함수를 매핑
+    const settingsMap = {
+      'settingSaleRate':   { setter: value => SALE_RATE = value / 100,  getter: () => SALE_RATE * 100 },
+      'settingVatRate':    { setter: value => VAT_RATE = value / 100,   getter: () => VAT_RATE * 100 },
+      'settingPoizonFee':  { setter: value => POIZON_FEE = value,       getter: () => POIZON_FEE },
+      'settingStockxFee1': { setter: value => STOCKX_FEE1 = value / 100,getter: () => STOCKX_FEE1 * 100 },
+      'settingStockxFee2': { setter: value => STOCKX_FEE2 = value / 100,getter: () => STOCKX_FEE2 * 100 },
+      'settingStockxFee3': { setter: value => STOCKX_FEE3 = value,      getter: () => STOCKX_FEE3 },
+      'settingCreamFee1':  { setter: value => CREAM_FEE1 = value,       getter: () => CREAM_FEE1 },
+      'settingCreamFee2':  { setter: value => CREAM_FEE2 = value / 100, getter: () => CREAM_FEE2 * 100 },
+    };
+
+    // 설정 패널의 input들을 초기화하는 함수
+    const initializeSettings = () => {
+      Object.keys(settingsMap).forEach(id => {
+        el(id).value = settingsMap[id].getter();
+      });
+    };
+
+    // 설정 보기/숨기기 버튼 이벤트 리스너
+    el('toggleSettings').addEventListener('click', () => {
+      const panel = el('settingsPanel');
+      const button = el('toggleSettings');
+      panel.classList.toggle('open');
+      button.textContent = panel.classList.contains('open') ? '설정 닫기' : '설정 보기';
+    });
+
+    // 메인 입력창 이벤트 리스너
+    document.querySelectorAll(".input-box").forEach(input => {
+      input.addEventListener("input", calculateAll);
+    });
+
+    // 설정 입력창 이벤트 리스너
+    Object.keys(settingsMap).forEach(id => {
+      el(id).addEventListener('input', e => {
+        const value = parseFloat(e.target.value) || 0;
+        settingsMap[id].setter(value); // 맵을 이용해 변수 업데이트
+        calculateAll(); // 값 변경 시 전체 재계산
+      });
+    });
+
+    // 페이지 로딩 시 실행
+    initializeSettings();
+    calculateAll();
+  </script>
+</body>
+</html>
