@@ -36,18 +36,15 @@
   </button>
 
   <form id="resellForm" class="space-y-6">
-    <!-- ▼▼▼ 1. 입력창 수정: X 버튼 추가 ▼▼▼ -->
     <div>
       <label for="purchasePrice" class="block mb-1 font-medium text-gray-700">구입가</label>
       <div class="flex items-center space-x-2">
         <input type="number" id="purchasePrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 100000" inputmode="numeric" />
-        <button type="button" onclick="clearInput('purchasePrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
+        <!-- ▼▼▼ 버튼 모양 수정: rounded-full -> rounded-md ▼▼▼ -->
+        <button type="button" onclick="clearInput('purchasePrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-md w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
       </div>
     </div>
 
-    <!-- ▲▲▲ 여기까지 ▲▲▲ -->
-
-    <!-- ▼▼▼ 2. 구입 정보 패널 수정: 정가 라인 추가 ▼▼▼ -->
     <section class="bg-white rounded-lg shadow-md p-5 space-y-3 border border-indigo-100">
       <p class="text-lg font-semibold text-indigo-600">구입 정보</p>
       <hr class="border-indigo-200" />
@@ -55,13 +52,13 @@
       <p class="text-gray-700">실구입가: <span id="realPurchase" class="font-medium text-gray-900">-</span></p>
       <p class="text-gray-700">매입부가세: <span id="vat" class="font-medium text-gray-900">-</span></p>
     </section>
-    <!-- ▲▲▲ 여기까지 ▲▲▲ -->
 
     <div>
       <label for="poisonSellPrice" class="block mb-1 font-medium text-gray-700">포이즌 판매가</label>
       <div class="flex items-center space-x-2">
         <input type="number" id="poisonSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 150000" inputmode="numeric" />
-        <button type="button" onclick="clearInput('poisonSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
+        <!-- ▼▼▼ 버튼 모양 수정: rounded-full -> rounded-md ▼▼▼ -->
+        <button type="button" onclick="clearInput('poisonSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-md w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
       </div>
     </div>
 
@@ -78,7 +75,8 @@
       <label for="stockxSellPrice" class="block mb-1 font-medium text-gray-700">스탁엑스 판매가</label>
       <div class="flex items-center space-x-2">
         <input type="number" id="stockxSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 155000" inputmode="numeric" />
-        <button type="button" onclick="clearInput('stockxSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
+        <!-- ▼▼▼ 버튼 모양 수정: rounded-full -> rounded-md ▼▼▼ -->
+        <button type="button" onclick="clearInput('stockxSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-md w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
       </div>
     </div>
 
@@ -95,7 +93,8 @@
       <label for="creamSellPrice" class="block mb-1 font-medium text-gray-700">크림 판매가</label>
       <div class="flex items-center space-x-2">
         <input type="number" id="creamSellPrice" class="input-box w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 148000" inputmode="numeric" />
-        <button type="button" onclick="clearInput('creamSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
+        <!-- ▼▼▼ 버튼 모양 수정: rounded-full -> rounded-md ▼▼▼ -->
+        <button type="button" onclick="clearInput('creamSellPrice')" class="flex-shrink-0 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 font-bold rounded-md w-6 h-6 flex items-center justify-center transition-colors duration-200">X</button>
       </div>
     </div>
 
@@ -172,7 +171,6 @@
       return ((margin / realPurchase) * 100).toFixed(1);
     };
 
-    // ▼▼▼ 2. JS 수정: calculateShared 함수에 정가 정보 업데이트 로직 추가 ▼▼▼
     const calculateShared = () => {
       const purchase = parseFloat(el("purchasePrice").value) || 0;
       const realPurchase = Math.round(purchase * (1 - SALE_RATE));
@@ -185,7 +183,6 @@
 
       return { purchase, realPurchase, vat };
     };
-    // ▲▲▲ 여기까지 ▲▲▲
 
     const calculatePoison = ({ realPurchase, vat }) => {
       const poisonPrice = parseFloat(el("poisonSellPrice").value) || 0;
@@ -259,12 +256,10 @@
       calculateAll();
     };
 
-    // ▼▼▼ 1. JS 수정: 개별 입력창 초기화 함수 추가 ▼▼▼
     const clearInput = (inputId) => {
       el(inputId).value = "";
       calculateAll();
     };
-    // ▲▲▲ 여기까지 ▲▲▲
 
     const settingsMap = {
       'settingSaleRate':   { setter: value => SALE_RATE = value / 100,  getter: () => SALE_RATE * 100 },
