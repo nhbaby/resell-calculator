@@ -1,189 +1,130 @@
+// --- (기존 변수 선언은 동일) ---
 const scanButton = document.getElementById('scanButton');
 const videoContainer = document.getElementById('videoContainer');
 const videoElement = document.getElementById('video');
 const output = document.getElementById('output');
-const scanCountElem = document.getElementById('scanCount');
-const zoomSlider = document.getElementById('zoomSlider');
-const zoomLabel = document.getElementById('zoomLabel');
-const zoomValueDisplay = document.getElementById('zoomValue');
+// ... (나머지 변수들)
 
 let isScanning = false;
 let codeReader = null;
 let videoStream = null;
 let videoTrack = null;
 let scanCount = 0;
+let isTorchOn = false;
+let animationFrameId = null; // 수동 스캔 루프 제어를 위한 ID
 
-/**
- * 사용 가능한 비디오 입력 장치 중 최적의 후면 카메라를 찾습니다.
- * 1순위: 망원(Telephoto) 카메라
- * 2순위: 광각(Wide)이 아닌 후면 카메라 (표준 카메라일 확률 높음)
- * 3순위: 첫 번째 후면 카메라
- * 4순위: 첫 번째 비디오 장치
- * @returns {string|undefined} 최적의 카메라 deviceId
- */
-async function findOptimalBackCameraDeviceId() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const videoDevices = devices.filter(d => d.kind === 'videoinput');
+// --- (findOptimalBackCameraDeviceId, setupControls, setupZoomSlider, setupTorchButton 함수는 v0.6과 동일) ---
+// (이전 코드 붙여넣기)
+async function findOptimalBackCameraDeviceId() { /* v0.6과 동일 */ }
+function setupControls() { /* v0.6과 동일 */ }
+function setupZoomSlider() { /* v0.6과 동일 */ }
+function setupTorchButton() { /* v0.6과 동일 */ }
 
-  if (videoDevices.length === 0) {
-    console.warn("사용 가능한 비디오 장치가 없습니다.");
-    return undefined;
-  }
 
-  const backCameras = videoDevices.filter(device =>
-    device.label.toLowerCase().includes('back') ||
-    device.label.toLowerCase().includes('rear')
-  );
+// ✨ 새로운 수동 스캔 루프 함수 ✨
+function startManualScanLoop() {
+  if (!isScanning) return;
 
-  if (backCameras.length > 0) {
-    // 후면 카메라가 여러 개일 경우, 렌즈 종류에 따라 우선순위 부여
-    if (backCameras.length > 1) {
-      const telephotoCamera = backCameras.find(cam => cam.label.toLowerCase().includes('telephoto'));
-      if (telephotoCamera) {
-        console.log('망원 카메라 선택:', telephotoCamera.label);
-        return telephotoCamera.deviceId;
-      }
+  // 숨겨진 캔버스를 만들어 비디오 프레임을 그립니다.
+  const canvas = document.createElement('canvas');
+  canvas.width = videoElement.videoWidth;
+  canvas.height = videoElement.videoHeight;
+  const ctx = canvas.getContext('2d');
 
-      const standardCamera = backCameras.find(cam => !cam.label.toLowerCase().includes('wide'));
-      if (standardCamera) {
-        console.log('표준 카메라 선택:', standardCamera.label);
-        return standardCamera.deviceId;
-      }
+  // 비디오의 현재 프레임을 캔버스에 그립니다.
+  ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+  try {
+    // 캔버스에서 바코드를 해독 시도합니다.
+    const result = codeReader.decodeFromCanvas(canvas);
+    if (result && result.getText()) {
+      output.textContent = `✅ 바코드: ${result.getText()}`;
+      navigator.clipboard.writeText(result.getText()).catch(e => console.error('클립보드 복사 실패:', e));
+      stopScan(); // 성공 시 스캔 중지
+      return; // 루프 종료
     }
-    // 적절한 카메라를 못 찾았거나 후면 카메라가 1개 뿐이면, 첫 번째 후면 카메라 사용
-    console.log('기본 후면 카메라 선택:', backCameras[0].label);
-    return backCameras[0].deviceId;
+  } catch (err) {
+    if (!(err instanceof ZXing.NotFoundException)) {
+      console.error('스캔 오류:', err);
+    }
+    // NotFoundException은 정상적인 상황이므로 무시하고 계속 진행합니다.
   }
 
-  // 후면 카메라가 없으면, 그냥 첫 번째 비디오 장치를 반환
-  console.log('첫 번째 비디오 장치 선택:', videoDevices[0].label);
-  return videoDevices[0].deviceId;
+  // 다음 프레임에서 다시 스캔을 시도합니다.
+  animationFrameId = requestAnimationFrame(startManualScanLoop);
 }
 
-/**
- * 줌 슬라이더를 설정하고, 카메라가 줌을 지원하는 경우에만 표시합니다.
- */
-function setupZoomSlider() {
-  if (!videoTrack) {
-    zoomLabel.style.display = 'none';
-    return;
-  }
-  const capabilities = videoTrack.getCapabilities();
-  if (capabilities.zoom) {
-    zoomSlider.min = capabilities.zoom.min || 1;
-    zoomSlider.max = capabilities.zoom.max || 5; // 최대 줌 값을 조금 더 넉넉하게
-    zoomSlider.step = capabilities.zoom.step || 0.1;
-
-    const currentZoom = videoTrack.getSettings().zoom || zoomSlider.min;
-    zoomSlider.value = currentZoom;
-    zoomValueDisplay.textContent = Number(currentZoom).toFixed(1);
-
-    zoomLabel.style.display = 'inline-block';
-
-    zoomSlider.oninput = async () => {
-      const zoomLevel = Number(zoomSlider.value);
-      zoomValueDisplay.textContent = zoomLevel.toFixed(1);
-      try {
-        await videoTrack.applyConstraints({ advanced: [{ zoom: zoomLevel }] });
-      } catch (e) {
-        console.warn('줌 조절 실패:', e);
-      }
-    };
-  } else {
-    console.log("이 카메라는 줌을 지원하지 않습니다.");
-    zoomLabel.style.display = 'none';
-  }
-}
-
-/**
- * 스캔 프로세스를 중지하고 모든 리소스를 해제합니다.
- */
 function stopScan() {
   isScanning = false;
-  if (codeReader) {
-    codeReader.reset();
+  // 진행 중인 스캔 루프를 확실히 중지합니다.
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
-  if (videoStream) {
-    videoStream.getTracks().forEach(track => track.stop());
-  }
+
+  if (codeReader) codeReader.reset();
+  if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+
   videoContainer.style.display = 'none';
+  controlsContainer.style.display = 'none';
   scanButton.textContent = '스캔 다시 시작';
   scanButton.classList.remove('is-scanning');
-  zoomLabel.style.display = 'none';
+
+  isTorchOn = false;
+  torchButton.textContent = '🔦 토치 켜기';
+  torchButton.classList.remove('is-on');
+
   videoTrack = null;
 }
 
+// ✨ 스캔 버튼 클릭 이벤트 핸들러 (전면 수정) ✨
 scanButton.addEventListener('click', async () => {
   if (!isScanning) {
-    // --- 스캔 시작 로직 ---
     scanCount++;
     scanCountElem.textContent = `스캔 시도: ${scanCount}회`;
     scanButton.textContent = '스캔 중지';
     scanButton.classList.add('is-scanning');
-    output.textContent = '';
+    output.textContent = '카메라 준비 중...';
     videoContainer.style.display = 'block';
 
     try {
       const selectedDeviceId = await findOptimalBackCameraDeviceId();
-      if (!selectedDeviceId) {
-        throw new Error('사용 가능한 카메라가 없습니다!');
-      }
 
-      const initialZoom = 2.0; // 광학 줌 유도를 위한 초기 줌 값
+      // ✨ 초점과 해상도 제약을 강화한 constraints ✨
       const constraints = {
         video: {
           deviceId: { exact: selectedDeviceId },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          // 고급 제약: 초기 줌 레벨을 요청하여 망원 렌즈 활성화를 유도
-          advanced: [{ zoom: initialZoom }]
+          width: { min: 1280, ideal: 1920 }, // 더 높은 해상도 요구
+          height: { min: 720, ideal: 1080 },
+          focusMode: 'continuous', // 지속적인 자동 초점 시도
         }
       };
 
-      try {
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log(`초기 줌(${initialZoom}x) 설정으로 카메라 시작 성공.`);
-      } catch (e) {
-        console.warn(`초기 줌 설정 실패(${e.name}). 기본 설정으로 다시 시도합니다.`);
-        delete constraints.video.advanced; // 줌 제약 제거
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-      }
-
+      videoStream = await navigator.mediaDevices.getUserMedia(constraints);
       videoElement.srcObject = videoStream;
+
+      // 비디오가 재생될 때까지 기다립니다.
+      await new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => resolve();
+      });
       await videoElement.play();
 
       videoTrack = videoStream.getVideoTracks()[0];
-      setupZoomSlider(); // 줌 슬라이더 설정
+      setupControls();
 
       codeReader = new ZXing.BrowserMultiFormatReader();
-      codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
-        if (result) {
-          output.textContent = `✅ 바코드: ${result.text}`;
-          navigator.clipboard.writeText(result.text)
-            .then(() => console.log('클립보드 복사 성공!'))
-            .catch(err => console.error('클립보드 복사 실패:', err));
-
-          stopScan();
-        }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.error('스캔 오류:', err);
-        }
-      });
-
       isScanning = true;
+      output.textContent = '바코드를 중앙에 위치시켜주세요...';
+
+      // ✨ 수동 스캔 루프 시작 ✨
+      startManualScanLoop();
 
     } catch (err) {
       console.error('스캔 시작 중 에러 발생:', err);
-      if (err.name === 'NotAllowedError') {
-        output.textContent = '❌ 카메라 권한이 필요합니다. 브라우저 설정에서 권한을 허용해주세요.';
-      } else {
-        output.textContent = `❌ 에러: ${err.message}`;
-      }
-      stopScan(); // 에러 발생 시에도 리소스 정리
+      output.textContent = err.name === 'NotAllowedError' ? '❌ 카메라 권한이 필요합니다.' : `❌ 에러: ${err.message}`;
+      stopScan();
     }
-
   } else {
-    // --- 스캔 중지 로직 ---
     stopScan();
   }
 });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>바코드 스캔 테스트 (Release v0.5)</title>
+  <title>바코드 스캔 테스트 (Release v0.7)</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,20 +11,24 @@
 
   <div id="videoContainer">
     <video id="video" playsinline></video>
-    <div class="scan-guide" id="scanGuide"></div>
+    <div class="scan-guide"></div>
   </div>
   <br />
   <button id="scanButton">스캔 시작</button>
 
-  <label for="zoomSlider" id="zoomLabel" style="display:none; margin-top:15px;">
-    🔍 줌 조절:
-    <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" />
-    <span id="zoomValue">1.0</span>x
-  </label>
+  <div id="controlsContainer" style="display:none; margin-top: 15px;">
+    <label for="zoomSlider" id="zoomLabel">
+      🔍 줌 조절:
+      <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" />
+      <span id="zoomValue">1.0</span>x
+    </label>
+    <br>
+    <button id="torchButton">🔦 토치 켜기</button>
+  </div>
 
   <div id="output" aria-live="polite"></div>
   <div id="scanCount" aria-live="polite">스캔 시도: 0회</div>
-  <div id="footer">Release v0.5</div>
+  <div id="footer">Release v0.7</div>
 
   <noscript>
     <p style="color: red; font-weight: bold;">
