@@ -111,3 +111,22 @@ h1 {
   font-weight: bold;
   margin-left: 6px;
 }
+
+/* --- (기존 CSS 코드는 모두 동일) --- */
+
+/* ✨ v1.2: 디버그 로그 스타일 추가 */
+#debugLog {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #222;
+  color: #0f0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  text-align: left;
+  white-space: pre-wrap; /* 줄바꿈 허용 */
+  word-break: break-all; /* 긴 텍스트 강제 줄바꿈 */
+  border-radius: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #444;
+}
