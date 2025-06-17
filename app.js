@@ -18,52 +18,15 @@ let scanCount = 0;
 let isTorchOn = false;
 let animationFrameId = null;
 
-// --- (findOptimalBackCameraDeviceId, setupControls, setupZoomSlider, setupTorchButton 함수는 v0.6과 동일) ---
-// (이전 코드 붙여넣기)
-async function findOptimalBackCameraDeviceId() { /* v0.6과 동일 */ }
-function setupControls() { /* v0.6과 동일 */ }
-function setupZoomSlider() { /* v0.6과 동일 */ }
-function setupTorchButton() { /* v0.6과 동일 */ }
+// --- (findOptimalBackCameraDeviceId, setupControls 등 보조 함수는 v0.8과 거의 동일) ---
+async function findOptimalBackCameraDeviceId() { /* v0.8과 동일 */ }
+function setupControls() { /* v0.8과 동일 */ }
+function setupZoomSlider() { /* v0.8과 동일 */ }
+function setupTorchButton() { /* v0.8과 동일 */ }
+function startManualScanLoop(canvas, guide) { /* v0.8과 동일 */ }
 
-// ✨ v0.8: 크롭 및 스캔을 수행하는 고효율 루프 함수
-function startManualScanLoop(canvas, guide) {
-  if (!isScanning) return;
 
-  const videoRect = videoElement.getBoundingClientRect();
-  const guideRect = guide.getBoundingClientRect();
-
-  // 비디오 요소 내에서 가이드 박스의 상대적 위치 계산
-  const cropX = (guideRect.left - videoRect.left) / videoRect.width * videoElement.videoWidth;
-  const cropY = (guideRect.top - videoRect.top) / videoRect.height * videoElement.videoHeight;
-  const cropWidth = guideRect.width / videoRect.width * videoElement.videoWidth;
-  const cropHeight = guideRect.height / videoRect.height * videoElement.videoHeight;
-
-  // 캔버스 크기를 크롭할 영역의 크기로 설정
-  canvas.width = cropWidth;
-  canvas.height = cropHeight;
-
-  const ctx = canvas.getContext('2d');
-  // 비디오의 중앙 영역(가이드 박스)만 잘라내서 캔버스에 그립니다.
-  ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-  try {
-    const result = codeReader.decodeFromCanvas(ctx);
-    if (result && result.getText()) {
-      output.textContent = `✅ 바코드: ${result.getText()}`;
-      navigator.clipboard.writeText(result.getText()).catch(e => console.error('클립보드 복사 실패:', e));
-      stopScan();
-      return;
-    }
-  } catch (err) {
-    if (!(err instanceof ZXing.NotFoundException)) {
-      console.error('스캔 오류:', err);
-    }
-  }
-
-  animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
-}
-
-// ✨ v0.8: 안정성이 강화된 스캔 중지 함수
+// ✨ v0.9: 안정성이 대폭 강화된 스캔 중지 함수
 function stopScan() {
   isScanning = false;
   if (animationFrameId) {
@@ -72,11 +35,18 @@ function stopScan() {
   }
 
   if (codeReader) codeReader.reset();
-  if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+
+  if (videoStream) {
+    videoStream.getTracks().forEach(track => track.stop());
+  }
+
+  // 비디오 요소 완전 초기화
+  videoElement.pause();
+  videoElement.srcObject = null;
 
   videoContainer.style.display = 'none';
   controlsContainer.style.display = 'none';
-  scanButton.textContent = '스캔 다시 시작';
+  scanButton.textContent = '스캔 시작';
   scanButton.classList.remove('is-scanning');
 
   isTorchOn = false;
@@ -86,7 +56,8 @@ function stopScan() {
   videoTrack = null;
 }
 
-// ✨ v0.8: 안정성과 효율성이 개선된 스캔 시작 로직
+
+// ✨ v0.9: 이벤트 기반으로 수정된 안정적인 스캔 시작 로직
 scanButton.addEventListener('click', async () => {
   if (isScanning) {
     stopScan();
@@ -97,39 +68,49 @@ scanButton.addEventListener('click', async () => {
   scanCountElem.textContent = `스캔 시도: ${scanCount}회`;
   scanButton.textContent = '스캔 중지';
   scanButton.classList.add('is-scanning');
-  output.textContent = '카메라 준비 중...';
-  videoContainer.style.display = 'block';
+  output.textContent = '카메라 권한 요청 중...';
 
   try {
     const selectedDeviceId = await findOptimalBackCameraDeviceId();
-
     const constraints = {
       video: {
         deviceId: { exact: selectedDeviceId },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
-        // 초점 모드는 고급 제약으로 넣어 실패하더라도 전체가 중단되지 않도록 함
         advanced: [{ focusMode: 'continuous' }]
       }
     };
 
     videoStream = await navigator.mediaDevices.getUserMedia(constraints);
     videoElement.srcObject = videoStream;
+    videoContainer.style.display = 'block';
 
-    // play()는 비디오가 재생 준비되면 resolve되는 Promise를 반환. 이게 훨씬 안정적임.
-    await videoElement.play();
+    // ✨ v0.9 핵심 수정: await play() 대신 'canplay' 이벤트를 사용
+    // 비디오가 실제로 재생 가능한 상태가 되면 스캔 로직을 시작합니다.
+    const startScanningProcess = () => {
+      output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
 
-    videoTrack = videoStream.getVideoTracks()[0];
-    setupControls(); // 줌/토치 컨트롤러 설정
+      videoTrack = videoStream.getVideoTracks()[0];
+      setupControls();
 
-    codeReader = new ZXing.BrowserMultiFormatReader();
-    isScanning = true;
-    output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
+      codeReader = new ZXing.BrowserMultiFormatReader();
+      isScanning = true;
 
-    // 캔버스와 가이드 요소를 한 번만 생성/가져와서 루프에 전달 (성능 최적화)
-    const canvas = document.createElement('canvas');
-    const scanGuide = document.querySelector('.scan-guide');
-    startManualScanLoop(canvas, scanGuide);
+      const canvas = document.createElement('canvas');
+      const scanGuide = document.querySelector('.scan-guide');
+      startManualScanLoop(canvas, scanGuide);
+    };
+
+    // 'canplay' 이벤트 리스너를 추가합니다. { once: true } 옵션으로 한번만 실행되도록 보장합니다.
+    videoElement.addEventListener('canplay', startScanningProcess, { once: true });
+
+    // play()를 호출하여 재생을 '시작'만 시킵니다. 완료를 기다리지 않습니다.
+    videoElement.play().catch(err => {
+        // play() 자체가 에러를 발생시키는 경우(예: 사용자가 상호작용하기 전에 호출)
+        console.error("비디오 재생 실패:", err);
+        output.textContent = `❌ 비디오 재생에 실패했습니다: ${err.message}`;
+        stopScan();
+    });
 
   } catch (err) {
     console.error('스캔 시작 중 에러 발생:', err);
