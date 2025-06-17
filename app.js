@@ -1,6 +1,7 @@
 const scanButton = document.getElementById('scanButton');
 const videoContainer = document.getElementById('videoContainer');
 const videoElement = document.getElementById('video');
+const focusBox = document.getElementById('focusBox');
 const output = document.getElementById('output');
 const scanCountElem = document.getElementById('scanCount');
 const controlsContainer = document.getElementById('controlsContainer');
@@ -94,30 +95,49 @@ function setupTorchButton() {
     }
 }
 
-function startManualScanLoop(canvas, guide) {
+/**
+ * v1.8: '탭하여 초점 맞추기' 이벤트 핸들러 설정
+ */
+function setupTapToFocus() {
+    videoContainer.addEventListener('click', (event) => {
+        if (!videoTrack) return;
+
+        const capabilities = videoTrack.getCapabilities();
+        // 초점 거리(focusDistance) 또는 포인트 포커스(pointsOfInterest)를 지원하는지 확인
+        if (!capabilities.focusDistance && !capabilities.pointsOfInterest) {
+            logToScreen("이 카메라는 탭 포커스를 지원하지 않습니다.");
+            return;
+        }
+
+        const rect = videoContainer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // 초점 UI 표시 및 애니메이션
+        focusBox.style.left = `${x}px`;
+        focusBox.style.top = `${y}px`;
+        focusBox.classList.remove('is-focusing');
+        void focusBox.offsetWidth; // 리플로우 강제
+        focusBox.classList.add('is-focusing');
+
+        const focusPoint = { x: x / rect.width, y: y / rect.height };
+        const constraints = { advanced: [{ pointsOfInterest: [focusPoint], focusMode: 'continuous' }] };
+
+        logToScreen(`탭 포커스 시도: x=${focusPoint.x.toFixed(2)}, y=${focusPoint.y.toFixed(2)}`);
+
+        videoTrack.applyConstraints(constraints)
+            .catch(e => logToScreen(`포커스 조절 실패: ${e}`));
+    });
+}
+
+/**
+ * v1.8: 화면 전체를 스캔하는 단순화된 스캔 루프
+ */
+function startManualScanLoop() {
   if (!isScanning || !codeReader) return;
 
-  const videoRect = videoElement.getBoundingClientRect();
-  const guideRect = guide.getBoundingClientRect();
-
-  if (videoRect.width === 0 || videoRect.height === 0) {
-      animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
-      return;
-  }
-
-  const cropX = (guideRect.left - videoRect.left) / videoRect.width * videoElement.videoWidth;
-  const cropY = (guideRect.top - videoRect.top) / videoRect.height * videoElement.videoHeight;
-  const cropWidth = guideRect.width / videoRect.width * videoElement.videoWidth;
-  const cropHeight = guideRect.height / videoRect.height * videoElement.videoHeight;
-
-  canvas.width = cropWidth;
-  canvas.height = cropHeight;
-
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
   try {
-    const result = codeReader.decodeOnce(canvas);
+    const result = codeReader.decodeOnce(videoElement);
     if (result && result.text) {
       output.textContent = `✅ 바코드: ${result.text}`;
       navigator.clipboard.writeText(result.text).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
@@ -130,7 +150,7 @@ function startManualScanLoop(canvas, guide) {
     }
   }
 
-  animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
+  animationFrameId = requestAnimationFrame(startManualScanLoop);
 }
 
 function stopScan(resetUI = true) {
@@ -169,7 +189,7 @@ async function startScanWithDevice(deviceId) {
       deviceId: { exact: deviceId },
       width: { ideal: 1920 },
       height: { ideal: 1080 },
-      advanced: [{ focusMode: 'continuous' }]
+      focusMode: 'continuous'
     }
   };
 
@@ -184,28 +204,25 @@ async function startScanWithDevice(deviceId) {
         try {
             await videoElement.play();
             videoTrack = videoStream.getVideoTracks()[0];
+
             setupZoomSlider();
             setupTorchButton();
-            output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
+            setupTapToFocus(); // 탭 포커스 기능 활성화
 
-            // ✨ v1.7 핵심 수정: 스캐너에 "힌트"를 추가하여 인식률을 높입니다.
+            output.textContent = '바코드를 중앙에 두고, 필요하면 탭하여 초점을 맞추세요.';
+
             const hints = new Map();
             const formats = [
-                ZXing.BarcodeFormat.EAN_13,
-                ZXing.BarcodeFormat.CODE_128,
-                ZXing.BarcodeFormat.QR_CODE,
-                ZXing.BarcodeFormat.DATA_MATRIX,
-                ZXing.BarcodeFormat.ITF
+                ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.CODE_128,
+                ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
             ];
             hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-            hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // 더 강력하게 스캔
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
             codeReader = new ZXing.BrowserMultiFormatReader(hints);
-            logToScreen("스캐너에 힌트(EAN-13, QR 등)를 적용했습니다.");
 
-            const canvas = document.createElement('canvas');
-            const scanGuide = document.querySelector('.scan-guide');
-            startManualScanLoop(canvas, scanGuide);
+            startManualScanLoop();
+
         } catch (playError) {
             logToScreen(`❌ 비디오 재생 실패: ${playError.message}`);
             stopScan();

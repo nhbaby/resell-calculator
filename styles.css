@@ -4,6 +4,8 @@
   --background-color: #f0f0f0;
   --text-color: #333;
   --border-color: #ccc;
+  --danger-color: #e74c3c;
+  --danger-hover-color: #c0392b;
 }
 
 body {
@@ -21,23 +23,22 @@ h1 {
   margin-bottom: 20px;
 }
 
-/* 비디오와 스캔 가이드를 담는 컨테이너 */
 #videoContainer {
   position: relative;
   width: 100%;
   max-width: 400px;
   margin: 0 auto 10px auto;
-  display: none; /* JS로 제어 */
+  display: none;
+  cursor: pointer; /* 탭 할 수 있음을 암시 */
 }
 
 #video {
   width: 100%;
   border-radius: 10px;
   border: 2px solid var(--text-color);
-  display: block; /* 컨테이너가 block이면 비디오는 항상 block */
+  display: block;
 }
 
-/* 스캔 영역을 알려주는 시각적 가이드 */
 .scan-guide {
   position: absolute;
   top: 50%;
@@ -48,6 +49,35 @@ h1 {
   border: 2px solid rgba(255, 0, 0, 0.7);
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
   border-radius: 10px;
+  pointer-events: none; /* 가이드 라인은 클릭을 방해하지 않음 */
+}
+
+/* ✨ v1.8: 탭하여 초점 맞추기 UI 스타일 */
+#focusBox {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ffc107; /* 노란색 테두리 */
+  border-radius: 50%; /* 원형 */
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* 클릭 이벤트 방해하지 않도록 */
+  opacity: 0;
+}
+#focusBox.is-focusing {
+  display: block;
+  animation: focus-animation 0.7s ease-out;
+}
+
+@keyframes focus-animation {
+  0% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
 }
 
 #output {
@@ -75,10 +105,10 @@ h1 {
 }
 
 #scanButton.is-scanning {
-  background-color: #e74c3c;
+  background-color: var(--danger-color);
 }
 #scanButton.is-scanning:hover {
-  background-color: #c0392b;
+  background-color: var(--danger-hover-color);
 }
 
 #footer {
@@ -96,30 +126,12 @@ h1 {
   min-height: 20px;
 }
 
-/* 줌 슬라이더 스타일 */
-#zoomLabel {
-  font-size: 16px;
-  color: var(--text-color);
-  user-select: none;
-}
-#zoomSlider {
-  vertical-align: middle;
-  margin-left: 8px;
-  width: 150px;
-}
-#zoomValue {
-  font-weight: bold;
-  margin-left: 6px;
-}
-
-/* --- (기존 CSS 코드는 모두 동일) --- */
-
-/* ✨ v1.3: 컨트롤 UI 개선 */
+/* 컨트롤러 스타일 */
 #controlsContainer {
   display: none; /* JS로 제어 */
   flex-direction: column;
   align-items: center;
-  gap: 15px; /* 간격 증가 */
+  gap: 15px;
   margin-top: 15px;
   padding: 10px;
   border: 1px solid #ddd;
@@ -140,13 +152,13 @@ h1 {
   border: 1px solid #ccc;
   background-color: white;
   margin-left: 8px;
-  flex-grow: 1; /* 남는 공간 차지 */
+  flex-grow: 1;
 }
 #zoomControl {
-  display: none; /* JS로 제어 */
+  display: none;
 }
 #torchButton {
-  display: none; /* JS로 제어 */
+  display: none;
   padding: 8px 16px;
   font-size: 16px;
   background-color: #f39c12;
