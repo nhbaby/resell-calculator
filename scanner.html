@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>바코드 스캔 테스트 (Release v1.2)</title>
+  <title>바코드 스캔 테스트 (Release v1.3)</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -17,22 +17,25 @@
   <button id="scanButton">스캔 시작</button>
 
   <div id="controlsContainer" style="display:none; margin-top: 15px;">
-    <label for="zoomSlider" id="zoomLabel">
-      🔍 줌 조절:
+    <!-- ✨ v1.3: 카메라 선택 드롭다운 추가 -->
+    <div class="control-item">
+      <label for="cameraSelect">📷 카메라: </label>
+      <select id="cameraSelect"></select>
+    </div>
+    <div class="control-item" id="zoomControl">
+      <label for="zoomSlider">🔍 줌 조절: </label>
       <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" />
       <span id="zoomValue">1.0</span>x
-    </label>
-    <br>
-    <button id="torchButton">🔦 토치 켜기</button>
+    </div>
+    <div class="control-item">
+        <button id="torchButton">🔦 토치 켜기</button>
+    </div>
   </div>
 
   <div id="output" aria-live="polite"></div>
   <div id="scanCount" aria-live="polite">스캔 시도: 0회</div>
-
-  <!-- ✨ v1.2: 화면 디버깅을 위한 로그 영역 추가 -->
   <div id="debugLog"></div>
-
-  <div id="footer">Release v1.2</div>
+  <div id="footer">Release v1.3</div>
 
   <noscript>
     <p style="color: red; font-weight: bold;">
