@@ -3,7 +3,12 @@ const scanButton = document.getElementById('scanButton');
 const videoContainer = document.getElementById('videoContainer');
 const videoElement = document.getElementById('video');
 const output = document.getElementById('output');
-// ... (나머지 변수들)
+const scanCountElem = document.getElementById('scanCount');
+const controlsContainer = document.getElementById('controlsContainer');
+const zoomLabel = document.getElementById('zoomLabel');
+const zoomSlider = document.getElementById('zoomSlider');
+const zoomValueDisplay = document.getElementById('zoomValue');
+const torchButton = document.getElementById('torchButton');
 
 let isScanning = false;
 let codeReader = null;
@@ -11,7 +16,7 @@ let videoStream = null;
 let videoTrack = null;
 let scanCount = 0;
 let isTorchOn = false;
-let animationFrameId = null; // 수동 스캔 루프 제어를 위한 ID
+let animationFrameId = null;
 
 // --- (findOptimalBackCameraDeviceId, setupControls, setupZoomSlider, setupTorchButton 함수는 v0.6과 동일) ---
 // (이전 코드 붙여넣기)
@@ -20,43 +25,47 @@ function setupControls() { /* v0.6과 동일 */ }
 function setupZoomSlider() { /* v0.6과 동일 */ }
 function setupTorchButton() { /* v0.6과 동일 */ }
 
-
-// ✨ 새로운 수동 스캔 루프 함수 ✨
-function startManualScanLoop() {
+// ✨ v0.8: 크롭 및 스캔을 수행하는 고효율 루프 함수
+function startManualScanLoop(canvas, guide) {
   if (!isScanning) return;
 
-  // 숨겨진 캔버스를 만들어 비디오 프레임을 그립니다.
-  const canvas = document.createElement('canvas');
-  canvas.width = videoElement.videoWidth;
-  canvas.height = videoElement.videoHeight;
-  const ctx = canvas.getContext('2d');
+  const videoRect = videoElement.getBoundingClientRect();
+  const guideRect = guide.getBoundingClientRect();
 
-  // 비디오의 현재 프레임을 캔버스에 그립니다.
-  ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+  // 비디오 요소 내에서 가이드 박스의 상대적 위치 계산
+  const cropX = (guideRect.left - videoRect.left) / videoRect.width * videoElement.videoWidth;
+  const cropY = (guideRect.top - videoRect.top) / videoRect.height * videoElement.videoHeight;
+  const cropWidth = guideRect.width / videoRect.width * videoElement.videoWidth;
+  const cropHeight = guideRect.height / videoRect.height * videoElement.videoHeight;
+
+  // 캔버스 크기를 크롭할 영역의 크기로 설정
+  canvas.width = cropWidth;
+  canvas.height = cropHeight;
+
+  const ctx = canvas.getContext('2d');
+  // 비디오의 중앙 영역(가이드 박스)만 잘라내서 캔버스에 그립니다.
+  ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
   try {
-    // 캔버스에서 바코드를 해독 시도합니다.
-    const result = codeReader.decodeFromCanvas(canvas);
+    const result = codeReader.decodeFromCanvas(ctx);
     if (result && result.getText()) {
       output.textContent = `✅ 바코드: ${result.getText()}`;
       navigator.clipboard.writeText(result.getText()).catch(e => console.error('클립보드 복사 실패:', e));
-      stopScan(); // 성공 시 스캔 중지
-      return; // 루프 종료
+      stopScan();
+      return;
     }
   } catch (err) {
     if (!(err instanceof ZXing.NotFoundException)) {
       console.error('스캔 오류:', err);
     }
-    // NotFoundException은 정상적인 상황이므로 무시하고 계속 진행합니다.
   }
 
-  // 다음 프레임에서 다시 스캔을 시도합니다.
-  animationFrameId = requestAnimationFrame(startManualScanLoop);
+  animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
 }
 
+// ✨ v0.8: 안정성이 강화된 스캔 중지 함수
 function stopScan() {
   isScanning = false;
-  // 진행 중인 스캔 루프를 확실히 중지합니다.
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
@@ -77,54 +86,54 @@ function stopScan() {
   videoTrack = null;
 }
 
-// ✨ 스캔 버튼 클릭 이벤트 핸들러 (전면 수정) ✨
+// ✨ v0.8: 안정성과 효율성이 개선된 스캔 시작 로직
 scanButton.addEventListener('click', async () => {
-  if (!isScanning) {
-    scanCount++;
-    scanCountElem.textContent = `스캔 시도: ${scanCount}회`;
-    scanButton.textContent = '스캔 중지';
-    scanButton.classList.add('is-scanning');
-    output.textContent = '카메라 준비 중...';
-    videoContainer.style.display = 'block';
+  if (isScanning) {
+    stopScan();
+    return;
+  }
 
-    try {
-      const selectedDeviceId = await findOptimalBackCameraDeviceId();
+  scanCount++;
+  scanCountElem.textContent = `스캔 시도: ${scanCount}회`;
+  scanButton.textContent = '스캔 중지';
+  scanButton.classList.add('is-scanning');
+  output.textContent = '카메라 준비 중...';
+  videoContainer.style.display = 'block';
 
-      // ✨ 초점과 해상도 제약을 강화한 constraints ✨
-      const constraints = {
-        video: {
-          deviceId: { exact: selectedDeviceId },
-          width: { min: 1280, ideal: 1920 }, // 더 높은 해상도 요구
-          height: { min: 720, ideal: 1080 },
-          focusMode: 'continuous', // 지속적인 자동 초점 시도
-        }
-      };
+  try {
+    const selectedDeviceId = await findOptimalBackCameraDeviceId();
 
-      videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-      videoElement.srcObject = videoStream;
+    const constraints = {
+      video: {
+        deviceId: { exact: selectedDeviceId },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        // 초점 모드는 고급 제약으로 넣어 실패하더라도 전체가 중단되지 않도록 함
+        advanced: [{ focusMode: 'continuous' }]
+      }
+    };
 
-      // 비디오가 재생될 때까지 기다립니다.
-      await new Promise((resolve) => {
-        videoElement.onloadedmetadata = () => resolve();
-      });
-      await videoElement.play();
+    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+    videoElement.srcObject = videoStream;
 
-      videoTrack = videoStream.getVideoTracks()[0];
-      setupControls();
+    // play()는 비디오가 재생 준비되면 resolve되는 Promise를 반환. 이게 훨씬 안정적임.
+    await videoElement.play();
 
-      codeReader = new ZXing.BrowserMultiFormatReader();
-      isScanning = true;
-      output.textContent = '바코드를 중앙에 위치시켜주세요...';
+    videoTrack = videoStream.getVideoTracks()[0];
+    setupControls(); // 줌/토치 컨트롤러 설정
 
-      // ✨ 수동 스캔 루프 시작 ✨
-      startManualScanLoop();
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    isScanning = true;
+    output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
 
-    } catch (err) {
-      console.error('스캔 시작 중 에러 발생:', err);
-      output.textContent = err.name === 'NotAllowedError' ? '❌ 카메라 권한이 필요합니다.' : `❌ 에러: ${err.message}`;
-      stopScan();
-    }
-  } else {
+    // 캔버스와 가이드 요소를 한 번만 생성/가져와서 루프에 전달 (성능 최적화)
+    const canvas = document.createElement('canvas');
+    const scanGuide = document.querySelector('.scan-guide');
+    startManualScanLoop(canvas, scanGuide);
+
+  } catch (err) {
+    console.error('스캔 시작 중 에러 발생:', err);
+    output.textContent = err.name === 'NotAllowedError' ? '❌ 카메라 권한이 필요합니다.' : `❌ 에러: ${err.message}`;
     stopScan();
   }
 });
