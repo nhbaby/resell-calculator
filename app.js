@@ -139,12 +139,12 @@ function startManualScanLoop(canvas, guide) {
   ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
   try {
-    // ✨ v1.5 핵심 수정: 올바른 API 'decodeOnce(canvas)'를 사용합니다.
     const result = codeReader.decodeOnce(canvas);
 
-    if (result && result.getText()) {
-      output.textContent = `✅ 바코드: ${result.getText()}`;
-      navigator.clipboard.writeText(result.getText()).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
+    // ✨ v1.6 핵심 수정: result.getText() 대신 result.text 속성을 직접 사용합니다.
+    if (result && result.text) {
+      output.textContent = `✅ 바코드: ${result.text}`;
+      navigator.clipboard.writeText(result.text).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
       stopScan();
       return;
     }
