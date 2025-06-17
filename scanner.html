@@ -109,8 +109,20 @@
 
           const selectedDeviceId = devices[0].deviceId;
 
+<!--          // 기존 코드에서-->
+<!--          videoStream = await navigator.mediaDevices.getUserMedia({-->
+<!--            video: { deviceId: selectedDeviceId, facingMode: 'environment' },-->
+<!--          });-->
+
+          // ↓ 이걸로 바꿔줘
+
           videoStream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: selectedDeviceId, facingMode: 'environment' },
+            video: {
+              deviceId: selectedDeviceId,
+              facingMode: 'environment',
+              zoom: true,
+              aspectRatio: 1.33
+            }
           });
 
           videoElement.srcObject = videoStream;
