@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>바코드 스캔 테스트 (Release v0.1)</title>
+  <title>바코드 스캔 테스트 (Release v0.2)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -67,7 +67,7 @@
   <button id="scanButton">스캔 시작</button>
   <div id="output"></div>
   <div id="scanCount">스캔 시도: 0회</div>
-  <div id="footer">Release v0.11</div>
+  <div id="footer">Release v0.2</div>
 
   <!-- UMD 빌드 @zxing/library CDN -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
@@ -82,6 +82,11 @@
     let videoStream = null;
     let scanCount = 0;
 
+    async function getVideoInputDevices() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices.filter(device => device.kind === 'videoinput');
+    }
+
     scanButton.addEventListener('click', async () => {
       if (!isScanning) {
         scanCount++;
@@ -93,12 +98,7 @@
         try {
           codeReader = new ZXing.BrowserMultiFormatReader();
 
-          // 카메라 목록 가져오기
-          // 잘못된 부분 (오류 발생 부분)
-          // const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-
-          // 올바른 부분
-          const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+          const devices = await getVideoInputDevices();
 
           if (devices.length === 0) {
             output.textContent = '❌ 사용 가능한 카메라가 없습니다!';
@@ -109,7 +109,6 @@
 
           const selectedDeviceId = devices[0].deviceId;
 
-          // 비디오 스트림 열기
           videoStream = await navigator.mediaDevices.getUserMedia({
             video: { deviceId: selectedDeviceId, facingMode: 'environment' },
           });
@@ -121,7 +120,6 @@
             if (result) {
               output.textContent = `✅ 바코드: ${result.text}`;
 
-              // 클립보드 복사
               navigator.clipboard.writeText(result.text).then(() => {
                 console.log('클립보드 복사 성공!');
               }).catch((err) => {
@@ -152,7 +150,7 @@
         codeReader.reset();
       }
       if (videoStream) {
-        videoStream.getTracks().forEach((track) => track.stop());
+        videoStream.getTracks().forEach(track => track.stop());
       }
       videoElement.style.display = 'none';
       scanButton.textContent = '스캔 다시 시작';
