@@ -1,69 +1,69 @@
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  padding: 20px;
-  background-color: #f0f0f0;
+* {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-h1 {
-  margin-bottom: 20px;
-}
-#video {
-  width: 100%;
-  max-width: 400px;
-  border-radius: 10px;
-  border: 2px solid #333;
-  margin-bottom: 10px;
-  display: none;
-}
-#output {
-  margin-top: 20px;
-  font-size: 18px;
-  color: green;
-  min-height: 24px;
-}
-#scanButton {
-  padding: 15px 30px;
-  font-size: 18px;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  user-select: none;
-}
-#scanButton:hover {
-  background-color: #2980b9;
-}
-#footer {
-  margin-top: auto;
-  font-size: 14px;
-  color: #666;
-  padding: 10px 0;
-  border-top: 1px solid #ccc;
-}
-#scanCount {
-  margin-top: 10px;
-  font-size: 16px;
-  color: #333;
-  min-height: 20px;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* 줌 슬라이더 스타일 */
-#zoomLabel {
-  font-size: 16px;
-  color: #333;
-  user-select: none;
+body, html, #app {
+  height: 100%;
+  background: #222;
+  color: #eee;
+  font-family: 'Noto Sans KR', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1rem;
 }
-#zoomSlider {
-  vertical-align: middle;
-  margin-left: 8px;
-  width: 150px;
+
+#video {
+  margin-top: 1rem;
+  width: 90vw;
+  max-width: 600px;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 12px;
+  object-fit: cover;
 }
-#zoomValue {
-  font-weight: bold;
-  margin-left: 6px;
+
+#scan-btn {
+  font-size: 1.2rem;
+  padding: 0.8rem 1.2rem;
+  border-radius: 10px;
+  border: none;
+  background-color: #e53935;
+  color: white;
+  cursor: pointer;
+}
+
+#scan-btn.scanning {
+  background-color: #8e24aa;
+}
+
+.camera-label {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: #ccc;
+  min-height: 1.4rem;
+}
+
+.result {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  word-break: break-word;
+  max-width: 90vw;
+  text-align: center;
+}
+
+#zoom-label {
+  margin-top: 1rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #ccc;
+}
+
+#zoom-slider {
+  flex-grow: 1;
 }
