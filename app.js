@@ -20,9 +20,6 @@ let isTorchOn = false;
 let animationFrameId = null;
 let currentDeviceId = null;
 
-/**
- * 화면에 디버그 메시지를 출력하는 헬퍼 함수
- */
 function logToScreen(message) {
   if (debugLog) {
     debugLog.innerHTML += `> ${message}\n`;
@@ -30,36 +27,27 @@ function logToScreen(message) {
   }
 }
 
-/**
- * 사용 가능한 비디오 장치 목록에서 최적의 후면 카메라 ID를 찾습니다.
- */
 function findOptimalBackCameraId(videoDevices) {
   const backCameras = videoDevices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
   if (backCameras.length === 0) {
     logToScreen('⚠️ 후면 카메라를 찾지 못함.');
     return videoDevices.length > 0 ? videoDevices[0].deviceId : null;
   }
-
   let telephoto = backCameras.find(d => d.label.toLowerCase().includes('telephoto'));
   if (telephoto) {
     logToScreen(`✅ 망원 카메라 선택: ${telephoto.label}`);
     return telephoto.deviceId;
   }
-
   for (let i = backCameras.length - 1; i >= 0; i--) {
     if (!backCameras[i].label.toLowerCase().includes('wide')) {
       logToScreen(`✅ 표준 추정 카메라 선택: ${backCameras[i].label}`);
       return backCameras[i].deviceId;
     }
   }
-
   logToScreen(`⚠️ 표준/망원 추정 실패. 첫 후면 카메라 선택: ${backCameras[0].label}`);
   return backCameras[0].deviceId;
 }
 
-/**
- * 카메라 선택 드롭다운 메뉴를 기기 목록으로 채웁니다.
- */
 function populateCameraSelector(devices, selectedDeviceId) {
   cameraSelect.innerHTML = '';
   devices.forEach(device => {
@@ -73,9 +61,6 @@ function populateCameraSelector(devices, selectedDeviceId) {
   });
 }
 
-/**
- * 줌 슬라이더를 설정합니다.
- */
 function setupZoomSlider() {
     const capabilities = videoTrack.getCapabilities();
     if (capabilities.zoom) {
@@ -85,7 +70,6 @@ function setupZoomSlider() {
         zoomSlider.step = capabilities.zoom.step || 0.1;
         zoomSlider.value = videoTrack.getSettings().zoom || 1;
         zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
-
         zoomSlider.oninput = () => {
             videoTrack.applyConstraints({ advanced: [{ zoom: Number(zoomSlider.value) }] });
             zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
@@ -95,9 +79,6 @@ function setupZoomSlider() {
     }
 }
 
-/**
- * 토치 버튼을 설정합니다.
- */
 function setupTorchButton() {
     const capabilities = videoTrack.getCapabilities();
     if (capabilities.torch) {
@@ -113,9 +94,6 @@ function setupTorchButton() {
     }
 }
 
-/**
- * 중앙 영역만 잘라내어 스캔하는 고효율 수동 스캔 루프
- */
 function startManualScanLoop(canvas, guide) {
   if (!isScanning || !codeReader) return;
 
@@ -140,8 +118,6 @@ function startManualScanLoop(canvas, guide) {
 
   try {
     const result = codeReader.decodeOnce(canvas);
-
-    // ✨ v1.6 핵심 수정: result.getText() 대신 result.text 속성을 직접 사용합니다.
     if (result && result.text) {
       output.textContent = `✅ 바코드: ${result.text}`;
       navigator.clipboard.writeText(result.text).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
@@ -157,9 +133,6 @@ function startManualScanLoop(canvas, guide) {
   animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
 }
 
-/**
- * 스캔 프로세스를 중지하고 리소스를 해제합니다.
- */
 function stopScan(resetUI = true) {
   isScanning = false;
   if (animationFrameId) {
@@ -186,12 +159,8 @@ function stopScan(resetUI = true) {
   }
 }
 
-/**
- * 특정 deviceId로 스캔을 시작하거나 전환합니다.
- */
 async function startScanWithDevice(deviceId) {
   stopScan(false);
-
   isScanning = true;
   output.textContent = '카메라 전환 중...';
 
@@ -219,7 +188,20 @@ async function startScanWithDevice(deviceId) {
             setupTorchButton();
             output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
 
-            codeReader = new ZXing.BrowserMultiFormatReader();
+            // ✨ v1.7 핵심 수정: 스캐너에 "힌트"를 추가하여 인식률을 높입니다.
+            const hints = new Map();
+            const formats = [
+                ZXing.BarcodeFormat.EAN_13,
+                ZXing.BarcodeFormat.CODE_128,
+                ZXing.BarcodeFormat.QR_CODE,
+                ZXing.BarcodeFormat.DATA_MATRIX,
+                ZXing.BarcodeFormat.ITF
+            ];
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // 더 강력하게 스캔
+
+            codeReader = new ZXing.BrowserMultiFormatReader(hints);
+            logToScreen("스캐너에 힌트(EAN-13, QR 등)를 적용했습니다.");
 
             const canvas = document.createElement('canvas');
             const scanGuide = document.querySelector('.scan-guide');
@@ -239,9 +221,6 @@ async function startScanWithDevice(deviceId) {
   }
 }
 
-/**
- * 메인 '스캔 시작' 버튼 클릭 이벤트 핸들러
- */
 scanButton.addEventListener('click', async () => {
   if (isScanning) {
     stopScan();
@@ -282,9 +261,6 @@ scanButton.addEventListener('click', async () => {
   }
 });
 
-/**
- * 카메라 선택 드롭다운 메뉴 변경 이벤트 핸들러
- */
 cameraSelect.addEventListener('change', (event) => {
   const selectedDeviceId = event.target.value;
   if (selectedDeviceId !== currentDeviceId) {
