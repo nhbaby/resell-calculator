@@ -1,61 +1,105 @@
+:root {
+  --primary-color: #3498db;
+  --primary-hover-color: #2980b9;
+  --background-color: #f0f0f0;
+  --text-color: #333;
+  --border-color: #ccc;
+}
+
 body {
   font-family: Arial, sans-serif;
   text-align: center;
   padding: 20px;
-  background-color: #f0f0f0;
+  background-color: var(--background-color);
   margin: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
+
 h1 {
   margin-bottom: 20px;
 }
-#video {
+
+/* 비디오와 스캔 가이드를 담는 컨테이너 */
+#videoContainer {
+  position: relative;
   width: 100%;
   max-width: 400px;
-  border-radius: 10px;
-  border: 2px solid #333;
-  margin-bottom: 10px;
-  display: none;
+  margin: 0 auto 10px auto;
+  display: none; /* JS로 제어 */
 }
+
+#video {
+  width: 100%;
+  border-radius: 10px;
+  border: 2px solid var(--text-color);
+  display: block; /* 컨테이너가 block이면 비디오는 항상 block */
+}
+
+/* 스캔 영역을 알려주는 시각적 가이드 */
+.scan-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: 40%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 0, 0, 0.7);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+}
+
 #output {
   margin-top: 20px;
   font-size: 18px;
   color: green;
   min-height: 24px;
+  font-weight: bold;
 }
+
 #scanButton {
   padding: 15px 30px;
   font-size: 18px;
-  background-color: #3498db;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   user-select: none;
+  transition: background-color 0.2s;
 }
+
 #scanButton:hover {
-  background-color: #2980b9;
+  background-color: var(--primary-hover-color);
 }
+
+#scanButton.is-scanning {
+  background-color: #e74c3c;
+}
+#scanButton.is-scanning:hover {
+  background-color: #c0392b;
+}
+
 #footer {
   margin-top: auto;
   font-size: 14px;
   color: #666;
   padding: 10px 0;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--border-color);
 }
+
 #scanCount {
   margin-top: 10px;
   font-size: 16px;
-  color: #333;
+  color: var(--text-color);
   min-height: 20px;
 }
 
 /* 줌 슬라이더 스타일 */
 #zoomLabel {
   font-size: 16px;
-  color: #333;
+  color: var(--text-color);
   user-select: none;
 }
 #zoomSlider {
