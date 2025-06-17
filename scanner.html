@@ -3,62 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>바코드 스캔 테스트 (Release v0.2)</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-      background-color: #f0f0f0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    h1 {
-      margin-bottom: 20px;
-    }
-    #video {
-      width: 100%;
-      max-width: 400px;
-      border-radius: 10px;
-      border: 2px solid #333;
-      margin-bottom: 10px;
-      display: none;
-    }
-    #output {
-      margin-top: 20px;
-      font-size: 18px;
-      color: green;
-      min-height: 24px;
-    }
-    #scanButton {
-      padding: 15px 30px;
-      font-size: 18px;
-      background-color: #3498db;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      user-select: none;
-    }
-    #scanButton:hover {
-      background-color: #2980b9;
-    }
-    #footer {
-      margin-top: auto;
-      font-size: 14px;
-      color: #666;
-      padding: 10px 0;
-      border-top: 1px solid #ccc;
-    }
-    #scanCount {
-      margin-top: 10px;
-      font-size: 16px;
-      color: #333;
-      min-height: 20px;
-    }
-  </style>
+  <title>바코드 스캔 테스트 (Release v0.3)</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <h1>📷 바코드 스캔 테스트</h1>
@@ -67,107 +13,9 @@
   <button id="scanButton">스캔 시작</button>
   <div id="output"></div>
   <div id="scanCount">스캔 시도: 0회</div>
-  <div id="footer">Release v0.2</div>
+  <div id="footer">Release v0.3</div>
 
-  <!-- UMD 빌드 @zxing/library CDN -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script>
-    const scanButton = document.getElementById('scanButton');
-    const videoElement = document.getElementById('video');
-    const output = document.getElementById('output');
-    const scanCountElem = document.getElementById('scanCount');
-
-    let isScanning = false;
-    let codeReader = null;
-    let videoStream = null;
-    let scanCount = 0;
-
-    async function getVideoInputDevices() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      return devices.filter(device => device.kind === 'videoinput');
-    }
-
-    scanButton.addEventListener('click', async () => {
-      if (!isScanning) {
-        scanCount++;
-        scanCountElem.textContent = `스캔 시도: ${scanCount}회`;
-        scanButton.textContent = '스캔 중...';
-        output.textContent = '';
-        videoElement.style.display = 'block';
-
-        try {
-          codeReader = new ZXing.BrowserMultiFormatReader();
-
-          const devices = await getVideoInputDevices();
-
-          if (devices.length === 0) {
-            output.textContent = '❌ 사용 가능한 카메라가 없습니다!';
-            scanButton.textContent = '스캔 시작';
-            videoElement.style.display = 'none';
-            return;
-          }
-
-          const selectedDeviceId = devices[0].deviceId;
-
-<!--          // 기존 코드에서-->
-<!--          videoStream = await navigator.mediaDevices.getUserMedia({-->
-<!--            video: { deviceId: selectedDeviceId, facingMode: 'environment' },-->
-<!--          });-->
-
-          // ↓ 이걸로 바꿔줘
-
-          videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              deviceId: selectedDeviceId,
-              facingMode: 'environment',
-              zoom: true,
-              aspectRatio: 1.33
-            }
-          });
-
-          videoElement.srcObject = videoStream;
-          await videoElement.play();
-
-          codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
-            if (result) {
-              output.textContent = `✅ 바코드: ${result.text}`;
-
-              navigator.clipboard.writeText(result.text).then(() => {
-                console.log('클립보드 복사 성공!');
-              }).catch((err) => {
-                console.error('클립보드 복사 실패:', err);
-              });
-
-              stopScan();
-            }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-              console.error('스캔 오류:', err);
-            }
-          });
-
-          isScanning = true;
-        } catch (err) {
-          console.error('에러 발생:', err);
-          output.textContent = '에러 발생: ' + err;
-          scanButton.textContent = '스캔 시작';
-          videoElement.style.display = 'none';
-        }
-      } else {
-        stopScan();
-      }
-    });
-
-    function stopScan() {
-      if (codeReader) {
-        codeReader.reset();
-      }
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-      }
-      videoElement.style.display = 'none';
-      scanButton.textContent = '스캔 다시 시작';
-      isScanning = false;
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
