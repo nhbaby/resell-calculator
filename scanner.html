@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>모바일 바코드 스캔 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: none;
+            margin-bottom: 10px;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+            color: green;
+        }
+        #scanButton {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        #scanButton:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>📷 바코드 스캔 테스트</h1>
+    <video id="video"></video>
+    <br>
+    <button id="scanButton">스캔 시작</button>
+    <div id="output"></div>
+
+    <!-- zxing-js 라이브러리 CDN -->
+    <script src="https://unpkg.com/@zxing/browser@latest"></script>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const videoElement = document.getElementById('video');
+        const output = document.getElementById('output');
+
+        let codeReader = null;
+        let isScanning = false;
+
+        scanButton.addEventListener('click', async () => {
+            if (!isScanning) {
+                // 스캔 시작
+                scanButton.textContent = '스캔 중...';
+                output.textContent = '';
+                videoElement.style.display = 'block';
+
+                codeReader = new ZXing.BrowserMultiFormatReader();
+
+                try {
+                    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+                    console.log('카메라 목록:', devices);
+
+                    const selectedDeviceId = devices[0]?.deviceId;
+
+                    if (!selectedDeviceId) {
+                        output.textContent = '카메라를 찾을 수 없습니다!';
+                        scanButton.textContent = '스캔 시작';
+                        return;
+                    }
+
+                    await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
+                        if (result) {
+                            console.log('스캔 결과:', result.text);
+                            output.textContent = `✅ 바코드: ${result.text}`;
+
+                            // 클립보드 복사
+                            navigator.clipboard.writeText(result.text).then(() => {
+                                console.log('클립보드 복사 성공!');
+                            }).catch(err => {
+                                console.error('클립보드 복사 실패:', err);
+                            });
+
+                            // 스캔 중지
+                            codeReader.reset();
+                            videoElement.style.display = 'none';
+                            scanButton.textContent = '스캔 다시 시작';
+                            isScanning = false;
+                        }
+                        if (err && !(err instanceof ZXing.NotFoundException)) {
+                            console.error('스캔 오류:', err);
+                        }
+                    });
+
+                    isScanning = true;
+                } catch (err) {
+                    console.error(err);
+                    output.textContent = '에러 발생: ' + err;
+                    scanButton.textContent = '스캔 시작';
+                }
+            } else {
+                // 스캔 중지 후 다시 시작
+                if (codeReader) {
+                    codeReader.reset();
+                }
+                videoElement.style.display = 'none';
+                scanButton.textContent = '스캔 시작';
+                isScanning = false;
+            }
+        });
+    </script>
+</body>
+</html>
