@@ -67,7 +67,7 @@
   <button id="scanButton">스캔 시작</button>
   <div id="output"></div>
   <div id="scanCount">스캔 시도: 0회</div>
-  <div id="footer">Release v0.1</div>
+  <div id="footer">Release v0.11</div>
 
   <!-- UMD 빌드 @zxing/library CDN -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
@@ -94,7 +94,11 @@
           codeReader = new ZXing.BrowserMultiFormatReader();
 
           // 카메라 목록 가져오기
-          const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+          // 잘못된 부분 (오류 발생 부분)
+          // const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+
+          // 올바른 부분
+          const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
 
           if (devices.length === 0) {
             output.textContent = '❌ 사용 가능한 카메라가 없습니다!';
