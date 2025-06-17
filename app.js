@@ -73,12 +73,14 @@ scanButton.addEventListener('click', async () => {
         return;
       }
 
-      videoStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: selectedDeviceId,
-          aspectRatio: 1.33
-        }
-      });
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: selectedDeviceId,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            aspectRatio: 1.33
+          }
+        });
 
       videoElement.srcObject = videoStream;
       await videoElement.play();
