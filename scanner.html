@@ -3,25 +3,24 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>모바일 바코드 스캔 테스트</title>
+    <title>바코드 스캔 테스트</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
             padding: 20px;
-            background-color: #f9f9f9;
+            background-color: #f0f0f0;
         }
         h1 {
-            font-size: 24px;
             margin-bottom: 20px;
         }
         #video {
             width: 100%;
             max-width: 400px;
-            border: 2px solid #333;
             border-radius: 10px;
-            display: none;
+            border: 2px solid #333;
             margin-bottom: 10px;
+            display: none;
         }
         #output {
             margin-top: 20px;
@@ -44,12 +43,11 @@
 </head>
 <body>
     <h1>📷 바코드 스캔 테스트</h1>
-    <video id="video"></video>
+    <video id="video" playsinline></video>
     <br>
     <button id="scanButton">스캔 시작</button>
     <div id="output"></div>
 
-    <!-- zxing-js 라이브러리 CDN -->
     <script src="https://unpkg.com/@zxing/browser@latest"></script>
 
     <script>
@@ -57,31 +55,44 @@
         const videoElement = document.getElementById('video');
         const output = document.getElementById('output');
 
-        let codeReader = null;
         let isScanning = false;
+        let codeReader = null;
+        let videoStream = null;
 
         scanButton.addEventListener('click', async () => {
             if (!isScanning) {
-                // 스캔 시작
                 scanButton.textContent = '스캔 중...';
                 output.textContent = '';
                 videoElement.style.display = 'block';
 
-                codeReader = new ZXing.BrowserMultiFormatReader();
-
                 try {
+                    codeReader = new ZXing.BrowserMultiFormatReader();
+
+                    // 카메라 목록 가져오기
                     const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
                     console.log('카메라 목록:', devices);
 
-                    const selectedDeviceId = devices[0]?.deviceId;
-
-                    if (!selectedDeviceId) {
-                        output.textContent = '카메라를 찾을 수 없습니다!';
+                    if (devices.length === 0) {
+                        output.textContent = '❌ 사용 가능한 카메라가 없습니다!';
                         scanButton.textContent = '스캔 시작';
                         return;
                     }
 
-                    await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
+                    const selectedDeviceId = devices[0].deviceId;
+
+                    // 비디오 스트림 열기
+                    videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            deviceId: selectedDeviceId,
+                            facingMode: 'environment'
+                        }
+                    });
+
+                    videoElement.srcObject = videoStream;
+                    await videoElement.play();
+
+                    // decode 계속 시도
+                    codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
                         if (result) {
                             console.log('스캔 결과:', result.text);
                             output.textContent = `✅ 바코드: ${result.text}`;
@@ -94,10 +105,7 @@
                             });
 
                             // 스캔 중지
-                            codeReader.reset();
-                            videoElement.style.display = 'none';
-                            scanButton.textContent = '스캔 다시 시작';
-                            isScanning = false;
+                            stopScan();
                         }
                         if (err && !(err instanceof ZXing.NotFoundException)) {
                             console.error('스캔 오류:', err);
@@ -106,20 +114,26 @@
 
                     isScanning = true;
                 } catch (err) {
-                    console.error(err);
+                    console.error('에러 발생:', err);
                     output.textContent = '에러 발생: ' + err;
                     scanButton.textContent = '스캔 시작';
                 }
             } else {
-                // 스캔 중지 후 다시 시작
-                if (codeReader) {
-                    codeReader.reset();
-                }
-                videoElement.style.display = 'none';
-                scanButton.textContent = '스캔 시작';
-                isScanning = false;
+                stopScan();
             }
         });
+
+        function stopScan() {
+            if (codeReader) {
+                codeReader.reset();
+            }
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            videoElement.style.display = 'none';
+            scanButton.textContent = '스캔 다시 시작';
+            isScanning = false;
+        }
     </script>
 </body>
 </html>
