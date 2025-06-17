@@ -12,18 +12,18 @@ let videoTrack = null;
 let scanning = false;
 let scanCount = 0;
 
+// 후면 카메라만 필터 (label에 back, rear, 환경 포함) + 망원/줌 우선 선택 기능 추가
 async function getRearCameras() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const videoDevices = devices.filter(device => device.kind === 'videoinput');
-  // 후면 카메라만 필터링: 라벨에 back, rear, 환경 포함 여부 (대소문자 무관)
   const rearCameras = videoDevices.filter(device => /back|rear|환경/i.test(device.label));
-  return rearCameras.length ? rearCameras : videoDevices; // 없으면 전체 리턴
+  return rearCameras.length ? rearCameras : videoDevices;
 }
 
 async function selectPreferredCamera() {
   const rearCameras = await getRearCameras();
 
-  // 라벨에 tele, zoom, main 포함된 카메라 우선 선택
+  // 망원, 줌, 메인 포함된 카메라 우선 선택
   let preferred = rearCameras.find(cam => /tele|zoom|main/i.test(cam.label));
 
   if (!preferred && rearCameras.length > 0) {
@@ -63,7 +63,7 @@ async function startScanner() {
         deviceId: { exact: deviceId },
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        aspectRatio: 1.33
+        aspectRatio: 1.33,
       }
     });
 

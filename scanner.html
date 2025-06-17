@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>모바일 바코드 스캔 v1.5</title>
+<title>모바일 바코드 스캔 v1.6</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="app">
     <button id="scan-btn">스캔 시작 (0회)</button>
-    <div id="camera-label" class="camera-label">카메라: -</div>
+    <div id="camera-label" class="camera-label">카메라: -</div> <!-- 카메라 라벨 표시 추가 -->
     <video id="video" playsinline></video>
-
     <div id="result" class="result">스캔 결과가 여기에 표시됩니다.</div>
 
     <label id="zoom-label" for="zoom-slider" style="display:none;">
@@ -21,7 +20,8 @@
     </label>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.7/umd/index.min.js"></script>
+ <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="app.js"></script>
 </body>
 </html>
+
