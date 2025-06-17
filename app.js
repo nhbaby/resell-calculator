@@ -12,138 +12,27 @@ const cameraSelect = document.getElementById('cameraSelect');
 const debugLog = document.getElementById('debugLog');
 
 let isScanning = false;
-let codeReader = null;
+let codeReader = null; // ✨ 이 변수를 초기화하는 것이 핵심!
 let videoStream = null;
 let videoTrack = null;
 let scanCount = 0;
 let isTorchOn = false;
 let animationFrameId = null;
-let currentDeviceId = null; // 현재 사용 중인 카메라 ID 저장
+let currentDeviceId = null;
 
-/**
- * 화면에 디버그 메시지를 출력하는 헬퍼 함수
- * @param {string} message - 출력할 메시지
- */
+// --- (logToScreen, findOptimalBackCameraId, populateCameraSelector 등 보조 함수는 v1.3과 동일) ---
 function logToScreen(message) {
   if (debugLog) {
     debugLog.innerHTML += `> ${message}\n`;
     debugLog.scrollTop = debugLog.scrollHeight;
   }
 }
+function findOptimalBackCameraId(videoDevices) { /* v1.3과 동일 */ }
+function populateCameraSelector(devices, selectedDeviceId) { /* v1.3과 동일 */ }
+function setupZoomSlider() { /* v1.3과 동일 */ }
+function setupTorchButton() { /* v1.3과 동일 */ }
+function startManualScanLoop(canvas, guide) { /* v1.3과 동일 */ }
 
-/**
- * v1.3: 후면 카메라를 "역순"으로 탐색하여 표준/망원을 우선 찾도록 로직 개선
- * @param {MediaDeviceInfo[]} videoDevices - 사용 가능한 비디오 장치 목록
- * @returns {string|null} - 찾은 최적의 카메라 deviceId 또는 null
- */
-function findOptimalBackCameraId(videoDevices) {
-  const backCameras = videoDevices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
-  if (backCameras.length === 0) {
-    logToScreen('⚠️ 후면 카메라를 찾지 못함.');
-    return videoDevices.length > 0 ? videoDevices[0].deviceId : null;
-  }
-
-  let telephoto = backCameras.find(d => d.label.toLowerCase().includes('telephoto'));
-  if (telephoto) {
-    logToScreen(`✅ 망원 카메라 선택: ${telephoto.label}`);
-    return telephoto.deviceId;
-  }
-
-  for (let i = backCameras.length - 1; i >= 0; i--) {
-    if (!backCameras[i].label.toLowerCase().includes('wide')) {
-      logToScreen(`✅ 표준 추정 카메라 선택: ${backCameras[i].label}`);
-      return backCameras[i].deviceId;
-    }
-  }
-
-  logToScreen(`⚠️ 표준/망원 추정 실패. 첫 후면 카메라 선택: ${backCameras[0].label}`);
-  return backCameras[0].deviceId;
-}
-
-/**
- * 카메라 선택 드롭다운 메뉴를 기기 목록으로 채웁니다.
- * @param {MediaDeviceInfo[]} devices - 사용 가능한 비디오 장치 목록
- * @param {string} selectedDeviceId - 현재 선택된 장치의 ID
- */
-function populateCameraSelector(devices, selectedDeviceId) {
-  cameraSelect.innerHTML = '';
-  devices.forEach(device => {
-    const option = document.createElement('option');
-    option.value = device.deviceId;
-    option.innerText = device.label || `카메라 ${cameraSelect.options.length + 1}`;
-    if (device.deviceId === selectedDeviceId) {
-      option.selected = true;
-    }
-    cameraSelect.appendChild(option);
-  });
-}
-
-function setupZoomSlider() {
-    const capabilities = videoTrack.getCapabilities();
-    if (capabilities.zoom) {
-        zoomControl.style.display = 'flex';
-        zoomSlider.min = capabilities.zoom.min || 1;
-        zoomSlider.max = capabilities.zoom.max || 5;
-        zoomSlider.step = capabilities.zoom.step || 0.1;
-        zoomSlider.value = videoTrack.getSettings().zoom || 1;
-        zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
-
-        zoomSlider.oninput = () => {
-            videoTrack.applyConstraints({ advanced: [{ zoom: Number(zoomSlider.value) }] });
-            zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
-        };
-    } else {
-        zoomControl.style.display = 'none';
-    }
-}
-
-function setupTorchButton() {
-    const capabilities = videoTrack.getCapabilities();
-    if (capabilities.torch) {
-        torchButton.style.display = 'block';
-        torchButton.onclick = () => {
-            isTorchOn = !isTorchOn;
-            videoTrack.applyConstraints({ advanced: [{ torch: isTorchOn }] });
-            torchButton.textContent = isTorchOn ? '🔦 토치 끄기' : '🔦 토치 켜기';
-        };
-    } else {
-        torchButton.style.display = 'none';
-    }
-}
-
-function startManualScanLoop(canvas, guide) {
-  if (!isScanning) return;
-
-  const videoRect = videoElement.getBoundingClientRect();
-  const guideRect = guide.getBoundingClientRect();
-
-  const cropX = (guideRect.left - videoRect.left) / videoRect.width * videoElement.videoWidth;
-  const cropY = (guideRect.top - videoRect.top) / videoRect.height * videoElement.videoHeight;
-  const cropWidth = guideRect.width / videoRect.width * videoElement.videoWidth;
-  const cropHeight = guideRect.height / videoRect.height * videoElement.videoHeight;
-
-  canvas.width = cropWidth;
-  canvas.height = cropHeight;
-
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-  try {
-    const result = codeReader.decodeFromCanvas(ctx);
-    if (result && result.getText()) {
-      output.textContent = `✅ 바코드: ${result.getText()}`;
-      navigator.clipboard.writeText(result.getText()).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
-      stopScan();
-      return;
-    }
-  } catch (err) {
-    if (!(err instanceof ZXing.NotFoundException)) {
-      logToScreen(`스캔 오류: ${err}`);
-    }
-  }
-
-  animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
-}
 
 /**
  * 스캔 프로세스를 중지하고 리소스를 해제합니다.
@@ -155,7 +44,13 @@ function stopScan(resetUI = true) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
   }
-  if (codeReader) codeReader.reset();
+
+  // ✨ v1.4: codeReader를 null로 설정하여 확실하게 정리
+  if (codeReader) {
+    codeReader.reset();
+    codeReader = null;
+  }
+
   if (videoStream) videoStream.getTracks().forEach(track => track.stop());
 
   videoElement.pause();
@@ -172,12 +67,13 @@ function stopScan(resetUI = true) {
   }
 }
 
+
 /**
  * 특정 deviceId로 스캔을 시작하거나 전환합니다.
  * @param {string} deviceId - 사용할 카메라의 deviceId
  */
 async function startScanWithDevice(deviceId) {
-  stopScan(false); // UI는 남겨두고 기존 스트림과 스캔 루프를 정리
+  stopScan(false);
 
   isScanning = true;
   output.textContent = '카메라 전환 중...';
@@ -205,6 +101,10 @@ async function startScanWithDevice(deviceId) {
             setupZoomSlider();
             setupTorchButton();
             output.textContent = '바코드를 빨간색 상자 안에 위치시켜 주세요.';
+
+            // ✨ v1.4 핵심 수정: codeReader를 여기서 초기화합니다!
+            codeReader = new ZXing.BrowserMultiFormatReader();
+
             const canvas = document.createElement('canvas');
             const scanGuide = document.querySelector('.scan-guide');
             startManualScanLoop(canvas, scanGuide);
@@ -240,6 +140,7 @@ scanButton.addEventListener('click', async () => {
   output.textContent = '카메라 준비 중...';
 
   try {
+    // ✨ v1.4: getUserMedia({ video: true }) 로 권한을 먼저 얻는 간결한 방식으로 변경
     const initialStream = await navigator.mediaDevices.getUserMedia({ video: true });
     const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
     initialStream.getTracks().forEach(track => track.stop());
@@ -248,6 +149,10 @@ scanButton.addEventListener('click', async () => {
     logToScreen(`사용 가능 비디오 장치:\n  ${deviceLabels}`);
 
     const optimalDeviceId = findOptimalBackCameraId(devices);
+
+    if (!optimalDeviceId) {
+        throw new Error("사용 가능한 후면 카메라를 찾을 수 없습니다.");
+    }
 
     populateCameraSelector(devices, optimalDeviceId);
     videoContainer.style.display = 'block';
@@ -272,3 +177,115 @@ cameraSelect.addEventListener('change', (event) => {
     startScanWithDevice(selectedDeviceId);
   }
 });
+
+// 이전에 생략되었던 보조 함수들을 모두 포함합니다.
+function findOptimalBackCameraId(videoDevices) {
+  const backCameras = videoDevices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+  if (backCameras.length === 0) {
+    logToScreen('⚠️ 후면 카메라를 찾지 못함.');
+    return videoDevices.length > 0 ? videoDevices[0].deviceId : null;
+  }
+
+  let telephoto = backCameras.find(d => d.label.toLowerCase().includes('telephoto'));
+  if (telephoto) {
+    logToScreen(`✅ 망원 카메라 선택: ${telephoto.label}`);
+    return telephoto.deviceId;
+  }
+
+  for (let i = backCameras.length - 1; i >= 0; i--) {
+    if (!backCameras[i].label.toLowerCase().includes('wide')) {
+      logToScreen(`✅ 표준 추정 카메라 선택: ${backCameras[i].label}`);
+      return backCameras[i].deviceId;
+    }
+  }
+
+  logToScreen(`⚠️ 표준/망원 추정 실패. 첫 후면 카메라 선택: ${backCameras[0].label}`);
+  return backCameras[0].deviceId;
+}
+
+function populateCameraSelector(devices, selectedDeviceId) {
+  cameraSelect.innerHTML = '';
+  devices.forEach(device => {
+    const option = document.createElement('option');
+    option.value = device.deviceId;
+    option.innerText = device.label || `카메라 ${cameraSelect.options.length + 1}`;
+    if (device.deviceId === selectedDeviceId) {
+      option.selected = true;
+    }
+    cameraSelect.appendChild(option);
+  });
+}
+
+function setupZoomSlider() {
+    const capabilities = videoTrack.getCapabilities();
+    if (capabilities.zoom) {
+        zoomControl.style.display = 'flex';
+        zoomSlider.min = capabilities.zoom.min || 1;
+        zoomSlider.max = capabilities.zoom.max || 5;
+        zoomSlider.step = capabilities.zoom.step || 0.1;
+        zoomSlider.value = videoTrack.getSettings().zoom || 1;
+        zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
+
+        zoomSlider.oninput = () => {
+            videoTrack.applyConstraints({ advanced: [{ zoom: Number(zoomSlider.value) }] });
+            zoomValueDisplay.textContent = Number(zoomSlider.value).toFixed(1);
+        };
+    } else {
+        zoomControl.style.display = 'none';
+    }
+}
+
+function setupTorchButton() {
+    const capabilities = videoTrack.getCapabilities();
+    if (capabilities.torch) {
+        torchButton.parentElement.style.display = 'block'; // 부모 div를 보이게 함
+        torchButton.style.display = 'block';
+        torchButton.onclick = () => {
+            isTorchOn = !isTorchOn;
+            videoTrack.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+            torchButton.textContent = isTorchOn ? '🔦 토치 끄기' : '🔦 토치 켜기';
+        };
+    } else {
+        torchButton.parentElement.style.display = 'none';
+    }
+}
+
+function startManualScanLoop(canvas, guide) {
+  if (!isScanning || !codeReader) return; // codeReader가 null이면 루프 중단
+
+  const videoRect = videoElement.getBoundingClientRect();
+  const guideRect = guide.getBoundingClientRect();
+
+  if (videoRect.width === 0 || videoRect.height === 0) {
+      // 비디오가 아직 렌더링되지 않았으면 다음 프레임에서 재시도
+      animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
+      return;
+  }
+
+  const cropX = (guideRect.left - videoRect.left) / videoRect.width * videoElement.videoWidth;
+  const cropY = (guideRect.top - videoRect.top) / videoRect.height * videoElement.videoHeight;
+  const cropWidth = guideRect.width / videoRect.width * videoElement.videoWidth;
+  const cropHeight = guideRect.height / videoRect.height * videoElement.videoHeight;
+
+  canvas.width = cropWidth;
+  canvas.height = cropHeight;
+
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(videoElement, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+  try {
+    const result = codeReader.decodeFromCanvas(ctx);
+    if (result && result.getText()) {
+      output.textContent = `✅ 바코드: ${result.getText()}`;
+      navigator.clipboard.writeText(result.getText()).catch(e => logToScreen(`클립보드 복사 실패: ${e}`));
+      stopScan();
+      return;
+    }
+  } catch (err) {
+    if (!(err instanceof ZXing.NotFoundException)) {
+      logToScreen(`스캔 오류: ${err}`);
+    }
+  }
+
+  animationFrameId = requestAnimationFrame(() => startManualScanLoop(canvas, guide));
+}
