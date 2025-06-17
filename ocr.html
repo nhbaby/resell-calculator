@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <!-- 모바일 기기에서 화면 배율이 올바르게 적용되도록 viewport 메타 태그는 필수입니다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>모바일 웹캠 OCR</title>
+    <style>
+        /* CSS 전체를 모바일 우선으로 수정 */
+        * {
+            box-sizing: border-box; /* padding과 border가 width/height에 포함되도록 설정 */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 모바일 화면에 꽉 차도록 여백 최소화 */
+            padding: 10px;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        p {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        #video-container {
+            position: relative;
+            /* width를 100%로 설정하여 화면 폭에 맞춤. 데스크탑에서는 너무 커지지 않게 max-width 설정 */
+            width: 100%;
+            max-width: 640px;
+            /* 높이는 비디오 비율에 맞게 자동으로 조절되도록 height: auto */
+            height: auto;
+            border: 2px solid #ccc;
+            background-color: #000;
+        }
+        video {
+            /* 컨테이너에 비디오가 꽉 차게 설정 */
+            width: 100%;
+            height: auto;
+            display: block; /* 비디오 아래의 미세한 공백 제거 */
+        }
+        #capture-btn {
+            margin-top: 15px;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            /* 모바일에서 누르기 쉽도록 버튼도 화면 폭에 맞춤 */
+            width: 100%;
+            max-width: 640px;
+        }
+        #capture-btn:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        #result-container {
+            margin-top: 20px;
+            /* 결과창도 화면 폭에 맞춤 */
+            width: 100%;
+            max-width: 640px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+        }
+        #status {
+            font-style: italic;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>신발 박스 OCR 인식기</h1>
+    <p>카메라로 신발 박스를 비추고 '캡처 및 인식' 버튼을 누르세요.</p>
+
+    <div id="video-container">
+        <video id="video" autoplay playsinline></video>
+    </div>
+
+    <button id="capture-btn" disabled>카메라 로딩 중...</button>
+
+    <div id="result-container">
+        <h3>인식 결과:</h3>
+        <div id="status">카메라 권한을 허용해주세요.</div>
+        <pre id="ocr-result"></pre>
+    </div>
+
+    <!-- Tesseract.js 라이브러리 로드 -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
+    <script>
+        // DOM 요소 가져오기
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('capture-btn');
+        const ocrResultEl = document.getElementById('ocr-result');
+        const statusEl = document.getElementById('status');
+
+        let stream;
+
+        // 1. (수정됨) 모바일 후면 카메라를 사용하도록 설정
+        async function setupCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        // 이 부분이 모바일 후면 카메라를 요청하는 핵심 코드입니다.
+                        facingMode: { ideal: "environment" }
+                    }
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    captureBtn.disabled = false;
+                    captureBtn.textContent = '캡처 및 인식';
+                    statusEl.textContent = '카메라 준비 완료. 박스를 비추고 버튼을 누르세요.';
+                };
+
+            } catch (err) {
+                console.error("카메라 접근 에러:", err);
+                statusEl.textContent = `카메라에 접근할 수 없습니다. 권한을 허용했는지, HTTPS로 접속했는지 확인해주세요. (에러: ${err.name})`;
+            }
+        }
+
+        // 2. 캡처 및 OCR 처리 (이전과 동일)
+        async function captureAndRecognize() {
+            if (!stream) {
+                alert('카메라가 연결되지 않았습니다.');
+                return;
+            }
+
+            captureBtn.disabled = true;
+            captureBtn.textContent = '인식 중...';
+            statusEl.textContent = '이미지를 캡처하고 분석 중입니다...';
+            ocrResultEl.textContent = '';
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const worker = await Tesseract.createWorker('eng+kor', 1, {
+                logger: m => {
+                    console.log(m);
+                    if (m.status === 'recognizing text') {
+                        statusEl.textContent = `텍스트 인식 중... (${Math.round(m.progress * 100)}%)`;
+                    }
+                }
+            });
+
+            try {
+                const { data: { text } } = await worker.recognize(canvas);
+                ocrResultEl.textContent = text;
+                statusEl.textContent = '인식 완료!';
+                parseShoeBoxInfo(text);
+            } catch (err) {
+                console.error("OCR 처리 에러:", err);
+                statusEl.textContent = 'OCR 처리 중 에러가 발생했습니다.';
+                ocrResultEl.textContent = '에러: ' + err.message;
+            } finally {
+                await worker.terminate();
+                captureBtn.disabled = false;
+                captureBtn.textContent = '캡처 및 인식';
+            }
+        }
+
+        // 3. 개선된 파싱 함수 (이전과 동일)
+        function parseShoeBoxInfo(text) {
+            console.log("--- 파싱 시작 ---");
+            console.log("원본 텍스트:", text);
+
+            const modelRegex = /[A-Z]{2,3}\d{4,6}(?:[\s-]\d+)?/i;
+            const cmSizeRegex = /cm\s*(\d{2,3})/i;
+
+            const modelMatch = text.match(modelRegex);
+            const sizeMatch = text.match(cmSizeRegex);
+
+            let extractedInfo = "\n\n[추출 정보]";
+            let found = false;
+
+            if (modelMatch) {
+                console.log("추정 모델 번호:", modelMatch[0]);
+                extractedInfo += `\n모델 번호: ${modelMatch[0]}`;
+                found = true;
+            }
+
+            if (sizeMatch && sizeMatch[1]) {
+                const shoeSize = sizeMatch[1];
+                console.log("추정 사이즈 (cm):", shoeSize);
+                extractedInfo += `\n사이즈: ${shoeSize} mm`;
+                found = true;
+            }
+
+            if (!found) {
+                extractedInfo += "\n추출할 수 있는 특정 정보(모델, 사이즈)를 찾지 못했습니다.";
+            }
+
+            ocrResultEl.textContent += extractedInfo;
+            console.log("--- 파싱 종료 ---");
+        }
+
+        // 이벤트 리스너 연결
+        captureBtn.addEventListener('click', captureAndRecognize);
+
+        // 페이지 로드 시 카메라 설정 함수 호출
+        setupCamera();
+
+    </script>
+</body>
+</html>
